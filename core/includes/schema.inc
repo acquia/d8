@@ -69,7 +69,7 @@ function drupal_get_complete_schema($rebuild = FALSE) {
       // Load the .install files to get hook_schema.
       // On some databases this function may be called before bootstrap has
       // been completed, so we force the functions we need to load just in case.
-      if (drupal_container()->has('modules')) {
+      if (drupal_container()->has('extension_handler')) {
         // This function can be called very early in the bootstrap process, so
         // we force the system_list() static cache to be refreshed to ensure
         // that it contains the complete list of modules before we go on to call

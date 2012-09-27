@@ -2710,7 +2710,7 @@ function system_rebuild_module_data($reset = TRUE, $extension_handler = NULL, $c
   $modules_cache = &drupal_static(__FUNCTION__, array());
   // Only rebuild once per request. $modules and $modules_cache cannot be
   // combined into one variable, because the $modules_cache variable is reset by
-  // reference from drupal_container()->get('extension_handler')->systemListReset() during the rebuild.
+  // reference from systemListReset() during the rebuild.
   if (!isset($modules_cache['data'])) {
     $modules = _system_rebuild_module_data();
     ksort($modules);

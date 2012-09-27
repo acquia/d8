@@ -168,7 +168,7 @@ class ExtensionHandler {
         }
       }
       else {
-        $this->lists = $thi->systemListRebuild();
+        $this->lists = $this->systemListRebuild();
       }
       // We only return the module names here since module_list() doesn't need
       // the filename itself.

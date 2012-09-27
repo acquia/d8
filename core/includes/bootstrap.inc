@@ -2400,10 +2400,10 @@ function drupal_container(Container $new_container = NULL, $rebuild = FALSE) {
     $container = $new_container;
   }
   if (!isset($container)) {
-    // Return a ContainerBuilder instance with the bare essentials needed for any
-    // full bootstrap regardless of whether there will be a DrupalKernel involved.
-    // This will get merged with the full Kernel-built Container on normal page
-    // requests.
+    // This will never happen on a normal page request. It is currently used only
+    // by the installer and in situations where a full bootstrap is done outside
+    // the context of a DrupalKernel, e.g. run-tests.sh, or when an exception is
+    // thrown while the Kernel is booting.
     $container = new ContainerBuilder();
 
     // Register active configuration storage.
@@ -2436,6 +2436,7 @@ function drupal_container(Container $new_container = NULL, $rebuild = FALSE) {
       ->addArgument(config_get_config_directory(CONFIG_STAGING_DIRECTORY));
     $container
       ->register('keyvalue', 'Drupal\Core\KeyValueStore\KeyValueFactory');
+
     $cache = CacheFactory::get('cache');
     $bootstrap_cache = CacheFactory::get('bootstrap');
 
