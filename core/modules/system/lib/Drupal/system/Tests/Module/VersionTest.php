@@ -62,9 +62,8 @@ class VersionTest extends ModuleTestBase {
       // Testing extra version. Incompatible.
       'common_test (>2.4-rc0)',
     );
-    variable_set('dependencies', $dependencies);
-    $n = count($dependencies);
-    for ($i = 0; $i < $n; $i++) {
+    foreach ($dependencies as $i => $dependency) {
+      variable_set('dependency', $dependency);
       $this->drupalGet('admin/modules');
       $checkbox = $this->xpath('//input[@id="edit-modules-testing-module-test-enable"]');
       $this->assertEqual(!empty($checkbox[0]['disabled']), $i % 2, $dependencies[$i]);

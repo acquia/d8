@@ -6803,17 +6803,11 @@ function drupal_flush_all_caches() {
   // None currently; kept if any static caches need to be reset in the future.
 
   // Rebuild module and theme data.
-  system_rebuild_module_data();
-  system_rebuild_theme_data();
+  system_list_reset();
 
   // Ensure that all modules that are currently supposed to be enabled are
   // actually loaded.
   module_load_all();
-
-  // Update the list of bootstrap modules.
-  // Allows developers to get new hook_boot() implementations registered without
-  // having to write a hook_update_N() function.
-  _system_update_bootstrap_status();
 
   // Rebuild the schema and cache a fully-built schema based on new module data.
   // This is necessary for any invocation of index.php, because setting cache

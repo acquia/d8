@@ -1,6 +1,7 @@
 <?php
 
 use Drupal\Core\Database\Database;
+use Drupal\Component\ArraySelect;
 use Drupal\simpletest\TestBase;
 
 /**
@@ -132,6 +133,9 @@ function simpletest_run_tests($test_list, $reporter = 'drupal') {
 
   // Clear out the previous verbose files.
   file_unmanaged_delete_recursive('public://simpletest/verbose');
+
+  // Prime module data.
+  simpletest_prepare_module_data();
 
   // Get the info for the first test being run.
   $first_test = array_shift($test_list);
@@ -313,7 +317,8 @@ function simpletest_test_get_all() {
   if (!$groups) {
     // Make sure that namespaces for disabled modules are registered so that the
     // checks below will find them.
-    simpletest_classloader_register();
+    $module_data = system_rebuild_module_data();
+    simpletest_classloader_register($module_data);
 
     // Load test information from cache if available, otherwise retrieve the
     // information from each tests getInfo() method.
@@ -323,16 +328,16 @@ function simpletest_test_get_all() {
     else {
       // Select all PSR-0 classes in the Tests namespace of all modules.
       $classes = array();
-      $system_list = db_query("SELECT name, filename FROM {system}")->fetchAllKeyed();
 
-      foreach ($system_list as $name => $filename) {
+      foreach ($module_data as $name => $data) {
+        $dirname = dirname($data->filename);
         // Build directory in which the test files would reside.
-        $tests_dir = DRUPAL_ROOT . '/' . dirname($filename) . '/lib/Drupal/' . $name . '/Tests';
+        $tests_dir = DRUPAL_ROOT . '/' . $dirname . '/lib/Drupal/' . $name . '/Tests';
         // Scan it for test files if it exists.
         if (is_dir($tests_dir)) {
           $files = file_scan_directory($tests_dir, '/.*\.php/');
           if (!empty($files)) {
-            $basedir = DRUPAL_ROOT . '/' . dirname($filename) . '/lib/';
+            $basedir = DRUPAL_ROOT . '/' . $dirname . '/lib/';
             foreach ($files as $file) {
               // Convert the file name into the namespaced class name.
               $replacements = array(
@@ -357,7 +362,7 @@ function simpletest_test_get_all() {
           // If this test class requires a non-existing module, skip it.
           if (!empty($info['dependencies'])) {
             foreach ($info['dependencies'] as $module) {
-              if (!drupal_get_filename('module', $module)) {
+              if (!isset($module_data[$module])) {
                 continue 2;
               }
             }
@@ -384,14 +389,19 @@ function simpletest_test_get_all() {
 /**
  * Registers namespaces for disabled modules.
  */
-function simpletest_classloader_register() {
-  // Get the cached test modules list and register a test namespace for each.
-  $disabled_modules = db_query("SELECT name, filename FROM {system} WHERE status = 0")->fetchAllKeyed();
-  if ($disabled_modules) {
-    foreach ($disabled_modules as $name => $filename) {
-      drupal_classloader_register($name, dirname($filename));
-    }
+function simpletest_classloader_register($module_data = NULL) {
+  if (!$module_data) {
+    // This is only needed to register namespaces and it is safe to
+    // re-register existing namespaces so go with raw data.
+    $module_data = _system_rebuild_module_data('simpletest_module_data');
   }
+  foreach ($module_data as $name => $data) {
+    drupal_classloader_register($name, dirname($data->filename));
+  }
+}
+
+function simpletest_prepare_module_data() {
+  _system_rebuild_module_data('simpletest_module_data', TRUE);
 }
 
 /**

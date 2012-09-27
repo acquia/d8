@@ -1061,12 +1061,14 @@ abstract class WebTestBase extends TestBase {
    *   The retrieved HTML string, also available as $this->drupalGetContent()
    */
   protected function drupalGet($path, array $options = array(), array $headers = array()) {
-    $options['absolute'] = TRUE;
-
     // We re-using a CURL connection here. If that connection still has certain
     // options set, it might change the GET into a POST. Make sure we clear out
     // previous options.
-    $out = $this->curlExec(array(CURLOPT_HTTPGET => TRUE, CURLOPT_URL => url($path, $options), CURLOPT_NOBODY => FALSE, CURLOPT_HTTPHEADER => $headers));
+    if (!url_is_external($path) || $options) {
+      $options['absolute'] = TRUE;
+      $path = url($path, $options);
+    }
+    $out = $this->curlExec(array(CURLOPT_HTTPGET => TRUE, CURLOPT_URL => $path, CURLOPT_NOBODY => FALSE, CURLOPT_HTTPHEADER => $headers));
     $this->refreshVariables(); // Ensure that any changes to variables in the other thread are picked up.
 
     // Replace original page output with new output from redirected page(s).

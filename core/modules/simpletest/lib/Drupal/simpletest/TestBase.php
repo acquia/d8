@@ -122,6 +122,13 @@ abstract class TestBase {
   protected $verboseDirectory;
 
   /**
+   * The original database prefix when running inside Simpletest.
+   *
+   * @var string
+   */
+  protected $originalPrefix;
+
+  /**
    * Constructor for Test.
    *
    * @param $test_id
@@ -742,6 +749,10 @@ abstract class TestBase {
     foreach (array(CONFIG_ACTIVE_DIRECTORY, CONFIG_STAGING_DIRECTORY) as $type) {
       $GLOBALS['config_directories'][$type]['path'] = 'simpletest/' . substr($this->databasePrefix, 10) . '/config_' . $type;
     }
+    if (drupal_valid_test_ua()) {
+      $this->originalPrefix = drupal_valid_test_ua();
+      drupal_valid_test_ua($this->databasePrefix);
+    }
 
     // Reset and create a new service container.
     $this->container = drupal_container(NULL, TRUE);
@@ -820,7 +831,6 @@ abstract class TestBase {
 
     // Reset module list and module load status.
     module_list_reset();
-    module_load_all(FALSE, TRUE);
 
     // Restore original in-memory configuration.
     $conf = $this->originalConf;
@@ -829,6 +839,9 @@ abstract class TestBase {
     drupal_container($this->originalContainer);
     $language_interface = $this->originalLanguage;
     $GLOBALS['config_directories'] = $this->originalConfigDirectories;
+    if (isset($this->originalPrefix)) {
+      drupal_valid_test_ua($this->originalPrefix);
+    }
 
     // Restore original shutdown callbacks.
     $callbacks = &drupal_register_shutdown_function();

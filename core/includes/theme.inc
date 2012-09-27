@@ -1408,17 +1408,16 @@ function theme_render_template($template_file, $variables) {
  */
 function theme_enable($theme_list) {
   drupal_clear_css_cache();
-
+  $config = config('system.theme');
   foreach ($theme_list as $key) {
-    db_update('system')
-      ->fields(array('status' => 1))
-      ->condition('type', 'theme')
-      ->condition('name', $key)
-      ->execute();
-
+    // The value is not used, it needs to be consistent with
+    // config('system.module') which uses the value for weight so set all of
+    // them to the same value. 1 looks like 'enabled' so let's use that.
+    $config->set($key, 1);
     // Install default configuration of the theme.
     config_install_default_config('theme', $key);
   }
+  $config->save();
 
   list_themes(TRUE);
   menu_router_rebuild();
@@ -1445,13 +1444,11 @@ function theme_disable($theme_list) {
 
   drupal_clear_css_cache();
 
+  $config = config('system.theme');
   foreach ($theme_list as $key) {
-    db_update('system')
-      ->fields(array('status' => 0))
-      ->condition('type', 'theme')
-      ->condition('name', $key)
-      ->execute();
+    $config->clear($key);
   }
+  $config->save();
 
   list_themes(TRUE);
   menu_router_rebuild();

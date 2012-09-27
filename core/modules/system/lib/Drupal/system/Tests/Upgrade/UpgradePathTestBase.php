@@ -189,7 +189,7 @@ abstract class UpgradePathTestBase extends WebTestBase {
 
     // Load the first update screen.
     $update_url = $GLOBALS['base_url'] . '/core/update.php';
-    $this->drupalGet($update_url, array('external' => TRUE));
+    $this->drupalGet($update_url);
     if (!$this->assertResponse(200)) {
       throw new Exception('Initial GET to update.php did not return HTTP 200 status.');
     }
@@ -229,7 +229,7 @@ abstract class UpgradePathTestBase extends WebTestBase {
     }
 
     // Check if there still are pending updates.
-    $this->drupalGet($update_url, array('external' => TRUE));
+    $this->drupalGet($update_url);
     $this->drupalPost(NULL, array(), t('Continue'));
     if (!$this->assertText(t('No pending updates.'), t('No pending updates at the end of the update process.'))) {
       throw new Exception('update.php still shows pending updates after execution.');
@@ -243,7 +243,6 @@ abstract class UpgradePathTestBase extends WebTestBase {
     // but not on the test client.
     system_list_reset();
     module_implements_reset();
-    module_load_all(FALSE, TRUE);
 
     // Rebuild caches.
     drupal_flush_all_caches();
@@ -267,10 +266,15 @@ abstract class UpgradePathTestBase extends WebTestBase {
 
     $modules = array_merge($required_modules, $modules);
 
-    db_delete('system')
-      ->condition('type', 'module')
-      ->condition('name', $modules, 'NOT IN')
-      ->execute();
+    $config = config('system.module');
+    foreach ($config->get() as $module => $data) {
+      if (!in_array($module, $modules)) {
+        $config->clear($module);
+      }
+    }
+    $config
+      ->setSorter('module_config_sort')
+      ->save();
   }
 
 }

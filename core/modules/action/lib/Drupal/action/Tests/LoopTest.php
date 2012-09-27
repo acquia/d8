@@ -67,7 +67,6 @@ class LoopTest extends WebTestBase {
     $expected[] = 'Stack overflow: too many calls to actions_do(). Aborting to prevent infinite recursion.';
 
     $result = db_query("SELECT message FROM {watchdog} WHERE type = 'action_loop_test' OR type = 'action' ORDER BY wid");
-    $loop_started = FALSE;
     foreach ($result as $row) {
       $expected_message = array_shift($expected);
       $this->assertEqual($row->message, $expected_message, t('Expected message %expected, got %message.', array('%expected' => $expected_message, '%message' => $row->message)));

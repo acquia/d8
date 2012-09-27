@@ -792,8 +792,9 @@ function system_modules($form, $form_state = array()) {
 
   // Remove hidden modules from display list.
   $visible_files = $files;
+  $profile = drupal_get_profile();
   foreach ($visible_files as $filename => $file) {
-    if (!empty($file->info['hidden'])) {
+    if (!empty($file->info['hidden']) || $filename == $profile) {
       unset($visible_files[$filename]);
     }
   }
@@ -1252,7 +1253,7 @@ function system_modules_uninstall($form, $form_state = NULL) {
   $all_modules = system_rebuild_module_data();
   $disabled_modules = array();
   foreach ($all_modules as $name => $module) {
-    if (empty($module->status) && $module->schema_version > SCHEMA_UNINSTALLED) {
+    if (empty($module->status) && drupal_get_installed_schema_version($name) > SCHEMA_UNINSTALLED) {
       $disabled_modules[$name] = $module;
     }
   }

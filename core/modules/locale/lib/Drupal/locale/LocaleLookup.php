@@ -36,7 +36,16 @@ class LocaleLookup extends CacheArray {
     // Add the current user's role IDs to the cache key, this ensures that, for
     // example, strings for admin menu items and settings forms are not cached
     // for anonymous users.
-    $rids = implode(':', array_keys($GLOBALS['user']->roles));
+    if (isset($GLOBALS['user'])) {
+      $rids = implode(':', array_keys($GLOBALS['user']->roles));
+    }
+    else {
+      // If there is no global user, surely it's an anonymous user. For
+      // example, during update install_ensure_config_directory() calls for
+      // stream wrappers which calls locale_stream_wrappers() which has t()
+      // calls in it.
+      $rids = DRUPAL_ANONYMOUS_RID;
+    }
     parent::__construct("locale:$langcode:$context:$rids", 'cache');
   }
 

@@ -6,6 +6,7 @@
  */
 
 use Drupal\Core\Database\Database;
+use Drupal\Core\KeyValueStore\KeyValueFactory;
 use Drupal\Core\Utility\SchemaCache;
 
 /**
@@ -172,10 +173,8 @@ function drupal_get_installed_schema_version($module, $reset = FALSE, $array = F
   }
 
   if (!$versions) {
-    $versions = array();
-    $result = db_query("SELECT name, schema_version FROM {system} WHERE type = :type", array(':type' => 'module'));
-    foreach ($result as $row) {
-      $versions[$row->name] = $row->schema_version;
+    if (!$versions = drupal_container()->get('keyvalue')->get('system.module.schema')->getAll()) {
+      $versions= array();
     }
   }
 
@@ -196,11 +195,7 @@ function drupal_get_installed_schema_version($module, $reset = FALSE, $array = F
  *   The new schema version.
  */
 function drupal_set_installed_schema_version($module, $version) {
-  db_update('system')
-    ->fields(array('schema_version' => $version))
-    ->condition('name', $module)
-    ->execute();
-
+  drupal_container()->get('keyvalue')->get('system.module.schema')->set($module, $version);
   // Reset the static cache of module schema versions.
   drupal_get_installed_schema_version(NULL, TRUE);
 }

@@ -334,8 +334,17 @@ function field_cron() {
  * required if there are any active fields of that type.
  */
 function field_system_info_alter(&$info, $file, $type) {
-  if ($type == 'module' && module_hook($file->name, 'field_info')) {
-    $fields = field_read_fields(array('module' => $file->name), array('include_deleted' => TRUE));
+  // module_hook() relies on the very function this is called from:
+  // system_rebuild_module_data().
+  $function = $file->name . '_field_info';
+  if ($type == 'module' && function_exists($function)) {
+    try {
+      $fields = field_read_fields(array('module' => $file->name), array('include_deleted' => TRUE));
+    }
+    catch (Exception $e) {
+      // The field_config table is not yet installed. Nothing to do.
+      return;
+    }
     if ($fields) {
       $info['required'] = TRUE;
 
@@ -349,7 +358,8 @@ function field_system_info_alter(&$info, $file, $type) {
         }
       }
       if ($non_deleted) {
-        if (module_exists('field_ui')) {
+        // Calling module_exists() here leads to infinite recursion.
+        if (config('system.module')->get('field_ui') !== NULL) {
           $explanation = t('Field type(s) in use - see <a href="@fields-page">Field list</a>', array('@fields-page' => url('admin/reports/fields')));
         }
         else {

@@ -6,17 +6,8 @@
  */
 
 use Drupal\Core\Database\Database;
+use Drupal\Core\KeyValueStore\KeyValueFactory;
 use Drupal\locale\Gettext;
-
-/**
- * Indicates that a module has not been installed yet.
- */
-const SCHEMA_UNINSTALLED = -1;
-
-/**
- * Indicates that a module has been installed.
- */
-const SCHEMA_INSTALLED = 0;
 
 /**
  * Requirement severity -- Informational message only.
@@ -418,29 +409,21 @@ function drupal_install_system() {
 
   $system_path = drupal_get_path('module', 'system');
   require_once DRUPAL_ROOT . '/' . $system_path . '/system.install';
-  $system_versions = drupal_get_schema_versions('system');
-  $system_version = $system_versions ? max($system_versions) : SCHEMA_INSTALLED;
-  db_insert('system')
-    ->fields(array('filename', 'name', 'type', 'owner', 'status', 'schema_version', 'bootstrap'))
-    ->values(array(
-        'filename' => $system_path . '/system.module',
-        'name' => 'system',
-        'type' => 'module',
-        'owner' => '',
-        'status' => 1,
-        'schema_version' => $system_version,
-        'bootstrap' => 0,
-      ))
-    ->execute();
+  if ($system_versions = drupal_get_schema_versions('system')) {
+    drupal_container()
+      ->get('keyvalue')
+      ->get('system.module.schema')
+      ->set('system', max($system_versions));
+  }
+  config('system.module')
+    ->set('system', 0)
+    ->save('module_config_sort');
 
   // Clear out module list and hook implementation statics before calling
   // system_rebuild_theme_data().
   system_list_reset();
   module_list_reset();
   module_implements_reset();
-
-  system_rebuild_module_data();
-  system_rebuild_theme_data();
 
   config_install_default_config('module', 'system');
 

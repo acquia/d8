@@ -1655,15 +1655,12 @@ function install_import_translations_remaining(&$install_state) {
  *   A message informing the user that the installation is complete.
  */
 function install_finished(&$install_state) {
+  $profile = drupal_get_profile();
   // Remember the profile which was used.
-  variable_set('install_profile', drupal_get_profile());
+  variable_set('install_profile', $profile);
 
   // Install profiles are always loaded last.
-  db_update('system')
-    ->fields(array('weight' => 1000))
-    ->condition('type', 'module')
-    ->condition('name', drupal_get_profile())
-    ->execute();
+  module_set_weight($profile, 1000);
 
   // Flush all caches to ensure that any full bootstraps during the installer
   // do not leave stale cached data, and that any content types or other items

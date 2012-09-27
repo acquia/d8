@@ -6,9 +6,18 @@
  */
 
 use Drupal\Core\Utility\ModuleInfo;
-
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
+
+/**
+ * Indicates that a module has not been installed yet.
+ */
+const SCHEMA_UNINSTALLED = -1;
+
+/**
+ * Indicates that a module has been installed.
+ */
+const SCHEMA_INSTALLED = 0;
 
 /**
  * Maximum age of temporary files in seconds.
@@ -2525,116 +2534,6 @@ function system_check_directory($form_element) {
 }
 
 /**
- * Retrieves the current status of an array of files in the system table.
- *
- * @param $files
- *   An array of files to check.
- * @param $type
- *   The type of the files.
- */
-function system_get_files_database(&$files, $type) {
-  // Extract current files from database.
-  $result = db_query("SELECT filename, name, type, status, schema_version, weight FROM {system} WHERE type = :type", array(':type' => $type));
-  foreach ($result as $file) {
-    if (isset($files[$file->name]) && is_object($files[$file->name])) {
-      $file->uri = $file->filename;
-      foreach ($file as $key => $value) {
-        if (!isset($files[$file->name]->$key)) {
-          $files[$file->name]->$key = $value;
-        }
-      }
-    }
-  }
-}
-
-/**
- * Updates the records in the system table based on the files array.
- *
- * @param $files
- *   An array of files.
- * @param $type
- *   The type of the files.
- */
-function system_update_files_database(&$files, $type) {
-  $result = db_query("SELECT * FROM {system} WHERE type = :type", array(':type' => $type));
-
-  // Add all files that need to be deleted to a DatabaseCondition.
-  $delete = db_or();
-  foreach ($result as $file) {
-    if (isset($files[$file->name]) && is_object($files[$file->name])) {
-      // Keep the old filename from the database in case the file has moved.
-      $old_filename = $file->filename;
-
-      $updated_fields = array();
-
-      // Handle info specially, compare the serialized value.
-      $serialized_info = serialize($files[$file->name]->info);
-      if ($serialized_info != $file->info) {
-        $updated_fields['info'] = $serialized_info;
-      }
-      unset($file->info);
-
-      // Scan remaining fields to find only the updated values.
-      foreach ($file as $key => $value) {
-        if (isset($files[$file->name]->$key) && $files[$file->name]->$key != $value) {
-          $updated_fields[$key] = $files[$file->name]->$key;
-        }
-      }
-
-      // Update the record.
-      if (count($updated_fields)) {
-        db_update('system')
-          ->fields($updated_fields)
-          ->condition('filename', $old_filename)
-          ->execute();
-      }
-
-      // Indicate that the file exists already.
-      $files[$file->name]->exists = TRUE;
-    }
-    else {
-      // File is not found in file system, so delete record from the system table.
-      $delete->condition('filename', $file->filename);
-    }
-  }
-
-  if (count($delete) > 0) {
-    // Delete all missing files from the system table, but only if the plugin
-    // has never been installed.
-    db_delete('system')
-      ->condition($delete)
-      ->condition('schema_version', -1)
-      ->execute();
-  }
-
-  // All remaining files are not in the system table, so we need to add them.
-  $query = db_insert('system')->fields(array('filename', 'name', 'type', 'owner', 'info'));
-  foreach ($files as &$file) {
-    if (isset($file->exists)) {
-      unset($file->exists);
-    }
-    else {
-      $query->values(array(
-        'filename' => $file->uri,
-        'name' => $file->name,
-        'type' => $type,
-        'owner' => isset($file->owner) ? $file->owner : '',
-        'info' => serialize($file->info),
-      ));
-      $file->type = $type;
-      $file->status = 0;
-      $file->schema_version = -1;
-    }
-  }
-  $query->execute();
-
-  // If any module or theme was moved to a new location, we need to reset the
-  // system_list() cache or we will continue to load the old copy, look for
-  // schema updates in the wrong place, etc.
-  system_list_reset();
-}
-
-/**
  * Returns an array of information about enabled modules or themes.
  *
  * This function returns the information from the {system} table corresponding
@@ -2658,20 +2557,16 @@ function system_update_files_database(&$files, $type) {
  */
 function system_get_info($type, $name = NULL) {
   $info = array();
-  if ($type == 'module') {
-    $result = db_query('SELECT name, info FROM {system} WHERE type = :type AND status = 1', array(':type' => 'module'));
-    foreach ($result as $record) {
-      $info[$record->name] = unserialize($record->info);
-    }
+  $function = 'system_rebuild_' . $type . '_data';
+  $data = $function();
+  foreach (array_keys(config("system.$type")->get()) as $enabled) {
+    $info[$enabled] = $data[$enabled]->info;
   }
-  else {
-    $list = system_list($type);
-    foreach ($list as $shortname => $item) {
-      if (!empty($item->status)) {
-        $info[$shortname] = $item->info;
-      }
-    }
+  $profile = drupal_get_profile();
+  if (isset($info[$profile]) && !isset($info[$profile]['distribution_name'])) {
+    $info[$profile]['distribution_name'] = 'Drupal';
   }
+
   if (isset($name)) {
     return isset($info[$name]) ? $info[$name] : array();
   }
@@ -2705,81 +2600,97 @@ function system_get_module_info($property) {
  * @return
  *   An associative array of module information.
  */
-function _system_rebuild_module_data() {
-  // Find modules
-  $modules = drupal_system_listing('/^' . DRUPAL_PHP_FUNCTION_PATTERN . '\.module$/', 'modules', 'name', 0);
+function _system_rebuild_module_data($state_name = FALSE, $save = FALSE) {
+  static $module_store = array(), $profiles_seen;
 
-  // Find installation profiles.
-  $profiles = drupal_system_listing('/^' . DRUPAL_PHP_FUNCTION_PATTERN . '\.profile$/', 'profiles', 'name', 0);
-
-  // Include the install profile in modules that are loaded.
   $profile = drupal_get_profile();
-  $modules[$profile] = $profiles[$profile];
-
-  // Install profile hooks are always executed last.
-  $modules[$profile]->weight = 1000;
-
-  // Set defaults for module info.
-  $defaults = array(
-    'dependencies' => array(),
-    'description' => '',
-    'package' => 'Other',
-    'version' => NULL,
-    'php' => DRUPAL_MINIMUM_PHP,
-    'files' => array(),
-    'bootstrap' => 0,
-  );
-
-  // Read info files for each module.
-  foreach ($modules as $key => $module) {
-    // The module system uses the key 'filename' instead of 'uri' so copy the
-    // value so it will be used by the modules system.
-    $modules[$key]->filename = $module->uri;
-
-    // Look for the info file.
-    $module->info = drupal_parse_info_file(dirname($module->uri) . '/' . $module->name . '.info');
-
-    // Add the info file modification time, so it becomes available for
-    // contributed modules to use for ordering module lists.
-    $module->info['mtime'] = filemtime(dirname($module->uri) . '/' . $module->name . '.info');
-
-    // Skip modules that don't provide info.
-    if (empty($module->info)) {
-      unset($modules[$key]);
-      continue;
-    }
-
-    // Merge in defaults and save.
-    $modules[$key]->info = $module->info + $defaults;
-
-    // Prefix stylesheets and scripts with module path.
-    $path = dirname($module->uri);
-    if (isset($module->info['stylesheets'])) {
-      $module->info['stylesheets'] = _system_info_add_path($module->info['stylesheets'], $path);
-    }
-    if (isset($module->info['scripts'])) {
-      $module->info['scripts'] = _system_info_add_path($module->info['scripts'], $path);
-    }
-
-    // Install profiles are hidden by default, unless explicitly specified
-    // otherwise in the .info file.
-    if ($key == $profile && !isset($modules[$key]->info['hidden'])) {
-      $modules[$key]->info['hidden'] = TRUE;
-    }
-
-    // Invoke hook_system_info_alter() to give installed modules a chance to
-    // modify the data in the .info files if necessary.
-    $type = 'module';
-    drupal_alter('system_info', $modules[$key]->info, $modules[$key], $type);
+  // Find modules not yet processed.
+  $modules = array();
+  if (empty($module_store) && ($state_name || drupal_valid_test_ua()) && ($data = state()->get($state_name ?: __FUNCTION__))) {
+    // During a test run no modules can move, no info files can change so
+    // speed up test runs by only finding and parsing once.
+    $module_store = $data['module_store'];
+    $profiles_seen = $data['profiles_seen'];
   }
+  // If this is the first time, start with all modules.
+  if (empty($module_store)) {
+    // Find modules and installation profiles. As these are files, they can't
+    // change within a request. However, it does depend on $profile.
+    $modules = drupal_system_listing('/^' . DRUPAL_PHP_FUNCTION_PATTERN . '\.module$/', 'modules', 'name', 0);
+  }
+  // If this profile is not yet parsed, add it.
+  if (!isset($profiles_seen[$profile])) {
+    $profiles = drupal_system_listing('/^' . DRUPAL_PHP_FUNCTION_PATTERN . '\.profile$/', 'profiles', 'name', 0);
+    // Include the install profile in modules that are loaded.
+    $modules[$profile] = $profiles[$profile];
+    // Install profile hooks are always executed last.
+    $modules[$profile]->weight = 1000;
+    $profiles_seen[$profile] = TRUE;
+  }
+  // Now process the modules if necessary.
+  if ($modules) {
+    // Set defaults for module info.
+    $defaults = array(
+      'dependencies' => array(),
+      'description' => '',
+      'package' => 'Other',
+      'version' => NULL,
+      'php' => DRUPAL_MINIMUM_PHP,
+      'files' => array(),
+      'bootstrap' => 0,
+    );
+    // Read info files for each module.
+    foreach ($modules as $key => $module) {
+      // The module system uses the key 'filename' instead of 'uri' so copy the
+      // value so it will be used by the modules system.
+      $modules[$key]->filename = $module->uri;
 
-  if (isset($modules[$profile])) {
-    // The install profile is required, if it's a valid module.
-    $modules[$profile]->info['required'] = TRUE;
-    // Add a default distribution name if the profile did not provide one. This
-    // matches the default value used in install_profile_info().
-    if (!isset($modules[$profile]->info['distribution_name'])) {
-      $modules[$profile]->info['distribution_name'] = 'Drupal';
+      // Look for the info file.
+      $module->parsed_info = drupal_parse_info_file(dirname($module->uri) . '/' . $module->name . '.info');
+
+      // Add the info file modification time, so it becomes available for
+      // contributed modules to use for ordering module lists.
+      $module->parsed_info['mtime'] = filemtime(dirname($module->uri) . '/' . $module->name . '.info');
+
+      // Skip modules that don't provide info.
+      if (empty($module->parsed_info)) {
+        unset($modules[$key]);
+        continue;
+      }
+
+      // Merge in defaults and save.
+      $modules[$key]->parsed_info = $module->parsed_info + $defaults;
+
+      // Prefix stylesheets and scripts with module path.
+      $path = dirname($module->uri);
+      if (isset($module->parsed_info['stylesheets'])) {
+        $module->parsed_info['stylesheets'] = _system_info_add_path($module->parsed_info['stylesheets'], $path);
+      }
+      if (isset($module->parsed_info['scripts'])) {
+        $module->parsed_info['scripts'] = _system_info_add_path($module->parsed_info['scripts'], $path);
+      }
+
+      // Install profiles are hidden by default, unless explicitly specified
+      // otherwise in the .info file.
+      if ($key == $profile && !isset($modules[$key]->info['hidden'])) {
+        $modules[$key]->info['hidden'] = TRUE;
+      }
+    }
+    // Store the processed modules.
+    $module_store += $modules;
+  }
+  if ($save || ($modules && drupal_valid_test_ua())) {
+    state()->set($state_name ?: __FUNCTION__, array(
+      'module_store' => $module_store,
+      'profiles_seen' => $profiles_seen,
+    ));
+  }
+  $modules = $module_store;
+  // Do not return the non-active profile modules. Typically at most one: when
+  // testing switches the profile.
+  foreach ($profiles_seen as $key => $value) {
+    if ($key != $profile) {
+      unset($modules[$key]);
     }
   }
 
@@ -2792,47 +2703,70 @@ function _system_rebuild_module_data() {
  * @return
  *   Array of all available modules and their data.
  */
-function system_rebuild_module_data() {
-  $modules_cache = &drupal_static(__FUNCTION__);
+function system_rebuild_module_data($reset = TRUE) {
+  $modules_cache = &drupal_static(__FUNCTION__, array());
   // Only rebuild once per request. $modules and $modules_cache cannot be
   // combined into one variable, because the $modules_cache variable is reset by
   // reference from system_list_reset() during the rebuild.
-  if (!isset($modules_cache)) {
+  if (!isset($modules_cache['data'])) {
     $modules = _system_rebuild_module_data();
     ksort($modules);
-    system_get_files_database($modules, 'module');
-    system_update_files_database($modules, 'module');
-    $modules = _module_build_dependencies($modules);
-    $modules_cache = $modules;
-  }
-  return $modules_cache;
-}
-
-/**
- * Refresh bootstrap column in the system table.
- *
- * This is called internally by module_enable/disable() to flag modules that
- * implement hooks used during bootstrap, such as hook_boot(). These modules
- * are loaded earlier to invoke the hooks.
- */
-function _system_update_bootstrap_status() {
-  $bootstrap_modules = array();
-  foreach (bootstrap_hooks() as $hook) {
-    foreach (module_implements($hook) as $module) {
-      $bootstrap_modules[] = $module;
+    // Add status, weight and schema.
+    foreach ($modules as $module => $record) {
+      // Set defaults and name.
+      $record->name = $module;
+      $record->weight = 0;
+      $record->status = 0;
+      $record->schema_version = SCHEMA_UNINSTALLED;
     }
+    // Enabled status and weights.
+    foreach (config('system.module')->get() as $module => $weight) {
+      $modules[$module]->status = 1;
+      $modules[$module]->weight = $weight;
+    }
+    // As noted above, system_list_reset() deletes $modules_cache so the order
+    // here is important.
+    if ($reset) {
+      system_list_reset();
+    }
+    $modules_cache['data'] = $modules;
   }
-  $query = db_update('system')->fields(array('bootstrap' => 0));
-  if ($bootstrap_modules) {
-    db_update('system')
-      ->fields(array('bootstrap' => 1))
-      ->condition('name', $bootstrap_modules, 'IN')
-      ->execute();
-    $query->condition('name', $bootstrap_modules, 'NOT IN');
+  // Running the info alter function is not possible before full bootstrap.
+  if (!isset($modules_cache['info_alter']) && drupal_get_bootstrap_phase() >= DRUPAL_BOOTSTRAP_CODE) {
+    // Invoke hook_system_info_alter() to give installed modules a chance to
+    // modify the data in the .info files if necessary. It is not possible to
+    // use drupal_alter() which relies on system_list() which relies on this
+    // function.
+    $type = 'module';
+    // It is not impossible a function resets the modules cache. Keep it.
+    $modules = $modules_cache['data'];
+    foreach ($modules as $record) {
+       // Copy parsed info.
+      $record->info = $record->parsed_info;
+    }
+    foreach (config('system.module')->get() as $module => $weight) {
+      $function = $module .'_system_info_alter';
+      if (function_exists($function)) {
+        foreach ($modules as $record) {
+          $function($record->info, $record, $type);
+        }
+      }
+    }
+    $modules = _module_build_dependencies($modules);
+    $modules_cache['data'] = $modules;
+    $profile = drupal_get_profile();
+    if (isset($modules_cache['data'][$profile])) {
+      // The install profile is required, if it's a valid module.
+      $modules_cache['data'][$profile]->info['required'] = TRUE;
+      // Add a default distribution name if the profile did not provide one. This
+      // matches the default value used in install_profile_info().
+      if (!isset($modules_cache['data'][$profile]->info['distribution_name'])) {
+        $modules_cache['data'][$profile]->info['distribution_name'] = 'Drupal';
+      }
+    }
+    $modules_cache['info_alter'] = TRUE;
   }
-  $query->execute();
-  // Reset the cached list of bootstrap modules.
-  system_list_reset();
+  return $modules_cache['data'];
 }
 
 /**
@@ -2961,11 +2895,16 @@ function _system_rebuild_theme_data() {
  * @return
  *   Array of all available themes and their data.
  */
-function system_rebuild_theme_data() {
+function system_rebuild_theme_data($reset = TRUE) {
   $themes = _system_rebuild_theme_data();
   ksort($themes);
-  system_get_files_database($themes, 'theme');
-  system_update_files_database($themes, 'theme');
+  $themes_status = config('system.theme')->get();
+  foreach ($themes as $theme => $data) {
+    $data->status = isset($themes_status[$theme]);
+  }
+  if ($reset) {
+    system_list_reset();
+  }
   return $themes;
 }
 
@@ -2997,8 +2936,9 @@ function _system_info_add_path($info, $path) {
     // Unset the original value's key and set the new value with prefix, using
     // the original value as key, so original values can still be looked up.
     else {
-      unset($info[$key]);
-      $info[$value] = $path . '/' . $value;
+      // @TODO do something here to not mess up array order!
+      #unset($info[$key]);
+      $info[$key] = $path . '/' . $value;
     }
   }
   return $info;

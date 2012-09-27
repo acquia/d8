@@ -68,6 +68,9 @@ drupal_set_time_limit(0);
 
 simpletest_script_reporter_init();
 
+// Prime module data.
+simpletest_prepare_module_data();
+
 // Execute tests.
 simpletest_script_execute_batch(simpletest_script_get_test_list());
 

@@ -877,59 +877,38 @@ function drupal_get_filename($type, $name, $filename = NULL) {
   elseif (isset($files[$type][$name])) {
     // nothing
   }
-  // Verify that we have an active database connection, before querying
-  // the database. This is required because this function is called both
-  // before we have a database connection (i.e. during installation) and
-  // when a database connection fails.
   else {
-    try {
-      if (function_exists('db_query')) {
-        $file = db_query("SELECT filename FROM {system} WHERE name = :name AND type = :type", array(':name' => $name, ':type' => $type))->fetchField();
-        if ($file && file_exists(DRUPAL_ROOT . '/' . $file)) {
-          $files[$type][$name] = $file;
-        }
-      }
+    // We have a consistent directory naming: modules, themes...
+    $dir = $type . 's';
+    if ($type == 'theme_engine') {
+      $dir = 'themes/engines';
+      $extension = 'engine';
     }
-    catch (Exception $e) {
-      // The database table may not exist because Drupal is not yet installed,
-      // or the database might be down. We have a fallback for this case so we
-      // hide the error completely.
+    elseif ($type == 'theme') {
+      $extension = 'info';
     }
-    // Fallback to searching the filesystem if the database could not find the
-    // file or the file returned by the database is not found.
-    if (!isset($files[$type][$name])) {
-      // We have a consistent directory naming: modules, themes...
-      $dir = $type . 's';
-      if ($type == 'theme_engine') {
-        $dir = 'themes/engines';
-        $extension = 'engine';
-      }
-      elseif ($type == 'theme') {
-        $extension = 'info';
-      }
-      // Profiles are converted into modules in system_rebuild_module_data().
-      // @todo Remove false-exposure of profiles as modules.
-      elseif ($original_type == 'profile') {
-        $dir = 'profiles';
-        $extension = 'profile';
-      }
-      else {
-        $extension = $type;
-      }
+    // Profiles are converted into modules in system_rebuild_module_data().
+    // @todo Remove false-exposure of profiles as modules.
+    elseif ($original_type == 'profile') {
+      $dir = 'profiles';
+      $extension = 'profile';
+    }
+    else {
+      $extension = $type;
+    }
 
-      if (!isset($dirs[$dir][$extension])) {
-        $dirs[$dir][$extension] = TRUE;
-        if (!function_exists('drupal_system_listing')) {
-          require_once DRUPAL_ROOT . '/core/includes/common.inc';
-        }
-        // Scan the appropriate directories for all files with the requested
-        // extension, not just the file we are currently looking for. This
-        // prevents unnecessary scans from being repeated when this function is
-        // called more than once in the same page request.
-        $matches = drupal_system_listing("/^" . DRUPAL_PHP_FUNCTION_PATTERN . "\.$extension$/", $dir, 'name', 0);
-        foreach ($matches as $matched_name => $file) {
-          $files[$type][$matched_name] = $file->uri;
-        }
+    if (!isset($dirs[$dir][$extension])) {
+      $dirs[$dir][$extension] = TRUE;
+      if (!function_exists('drupal_system_listing')) {
+        require_once DRUPAL_ROOT . '/core/includes/common.inc';
+      }
+      // Scan the appropriate directories for all files with the requested
+      // extension, not just the file we are currently looking for. This
+      // prevents unnecessary scans from being repeated when this function is
+      // called more than once in the same page request.
+      $matches = drupal_system_listing("/^" . DRUPAL_PHP_FUNCTION_PATTERN . "\.$extension$/", $dir, 'name', 0);
+      foreach ($matches as $matched_name => $file) {
+        $files[$type][$matched_name] = $file->uri;
       }
     }
   }
@@ -2094,14 +2073,15 @@ function drupal_bootstrap($phase = NULL, $new_phase = TRUE) {
   );
   // Not drupal_static(), because the only legitimate API to control this is to
   // call drupal_bootstrap() with a new phase parameter.
-  static $final_phase;
+  static $final_phase = -1;
   // Not drupal_static(), because it's impossible to roll back to an earlier
   // bootstrap state.
   static $stored_phase = -1;
 
-  // When not recursing, store the phase name so it's not forgotten while
-  // recursing.
-  if ($new_phase) {
+  // When not recursing, store the phase name so it's not forgotten during
+  // recursion. Additionally, ensure that $final_phase is never rolled back to an
+  // earlier bootstrap state.
+  if ($new_phase && $phase > $final_phase) {
     $final_phase = $phase;
   }
   if (isset($phase)) {
@@ -2382,7 +2362,7 @@ function _drupal_bootstrap_page_header() {
  * @see drupal_bootstrap()
  */
 function drupal_get_bootstrap_phase() {
-  return drupal_bootstrap();
+  return drupal_bootstrap(NULL, FALSE);
 }
 
 /**
@@ -2454,8 +2434,7 @@ function drupal_container(Container $new_container = NULL, $rebuild = FALSE) {
       ->register('config.storage.staging', 'Drupal\Core\Config\FileStorage')
       ->addArgument(config_get_config_directory(CONFIG_STAGING_DIRECTORY));
     $container
-      ->register('state.storage', 'Drupal\Core\KeyValueStore\DatabaseStorage')
-      ->addArgument('state');
+      ->register('keyvalue', 'Drupal\Core\KeyValueStore\KeyValueFactory');
   }
   return $container;
 }
@@ -2472,22 +2451,27 @@ function drupal_container(Container $new_container = NULL, $rebuild = FALSE) {
  * @return Drupal\Core\KeyValueStore\KeyValueStoreInterface
  */
 function state() {
-  return drupal_container()->get('state.storage');
+  return drupal_container()->get('keyvalue')->get('state.storage');
 }
 
 /**
  * Returns the test prefix if this is an internal request from SimpleTest.
+ *
+ * @param string $new_prefix
+ *   Internal use only. A new prefix to be stored.
  *
  * @return
  *   Either the simpletest prefix (the string "simpletest" followed by any
  *   number of digits) or FALSE if the user agent does not contain a valid
  *   HMAC and timestamp.
  */
-function drupal_valid_test_ua() {
+function drupal_valid_test_ua($new_prefix = NULL) {
   global $drupal_hash_salt;
-  // No reason to reset this.
   static $test_prefix;
 
+  if (isset($new_prefix)) {
+    $test_prefix = $new_prefix;
+  }
   if (isset($test_prefix)) {
     return $test_prefix;
   }

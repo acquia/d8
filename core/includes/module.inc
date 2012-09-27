@@ -6,6 +6,7 @@
  */
 
 use Drupal\Component\Graph\Graph;
+use Drupal\Core\KeyValueStore\KeyValueFactory;
 
 /**
  * Loads all the modules that have been enabled in the system table.
@@ -14,23 +15,13 @@ use Drupal\Component\Graph\Graph;
  *   Whether to load only the reduced set of modules loaded in "bootstrap mode"
  *   for cached pages. See bootstrap.inc. Pass NULL to only check the current
  *   status without loading of modules.
- * @param bool $reset
- *   (optional) Internal use only. Whether to reset the internal statically
- *   cached flag of whether modules have been loaded. If TRUE, all modules are
- *   (re)loaded in the same call. Used by the testing framework to override and
- *   persist a limited module list for the duration of a unit test (in which no
- *   module system exists).
  *
  * @return bool
  *   A Boolean indicating whether all modules have been loaded. This means all
  *   modules; the load status of bootstrap modules cannot be checked.
  */
-function module_load_all($bootstrap = FALSE, $reset = FALSE) {
+function module_load_all($bootstrap = FALSE) {
   static $has_run = FALSE;
-
-  if ($reset) {
-    $has_run = FALSE;
-  }
 
   // Unless $boostrap is NULL, load the requested set of modules.
   if (isset($bootstrap) && !$has_run) {
@@ -144,22 +135,20 @@ function system_list($type) {
       return $lists['bootstrap'];
     }
     if ($cached = cache('bootstrap')->get('bootstrap_modules')) {
-      $bootstrap_list = $cached->data;
+      $lists['bootstrap'] = $cached->data;
+      // To avoid a separate database lookup for the filepath, prime the
+      // drupal_get_filename() static cache for bootstrap modules only.
+      // The rest is stored separately to keep the bootstrap module cache small.
+      foreach ($lists['bootstrap'] as $module => $filename) {
+        _system_list_warm('module', $module, $filename);
+      }
     }
     else {
-      $bootstrap_list = db_query("SELECT name, filename FROM {system} WHERE status = 1 AND bootstrap = 1 AND type = 'module' ORDER BY weight ASC, name ASC")->fetchAllAssoc('name');
-      cache('bootstrap')->set('bootstrap_modules', $bootstrap_list);
-    }
-    // To avoid a separate database lookup for the filepath, prime the
-    // drupal_get_filename() static cache for bootstrap modules only.
-    // The rest is stored separately to keep the bootstrap module cache small.
-    foreach ($bootstrap_list as $module) {
-      drupal_classloader_register($module->name, dirname($module->filename));
-      drupal_get_filename('module', $module->name, $module->filename);
+      $lists = _system_list_rebuild();
     }
     // We only return the module names here since module_list() doesn't need
     // the filename itself.
-    $lists['bootstrap'] = array_keys($bootstrap_list);
+    $lists['bootstrap'] = array_keys($lists['bootstrap']);
   }
   // Otherwise build the list for enabled modules and themes.
   elseif (!isset($lists['module_enabled'])) {
@@ -167,68 +156,128 @@ function system_list($type) {
       $lists = $cached->data;
     }
     else {
-      $lists = array(
-        'module_enabled' => array(),
-        'theme' => array(),
-        'filepaths' => array(),
-      );
-      // The module name (rather than the filename) is used as the fallback
-      // weighting in order to guarantee consistent behavior across different
-      // Drupal installations, which might have modules installed in different
-      // locations in the file system. The ordering here must also be
-      // consistent with the one used in module_implements().
-      $result = db_query("SELECT * FROM {system} WHERE type = 'theme' OR (type = 'module' AND status = 1) ORDER BY weight ASC, name ASC");
-      foreach ($result as $record) {
-        // Build a list of all enabled modules.
-        if ($record->type == 'module') {
-          $lists['module_enabled'][$record->name] = $record->name;
-        }
-        // Build a list of themes.
-        if ($record->type == 'theme') {
-          $record->info = unserialize($record->info);
-          $lists['theme'][$record->name] = $record;
-        }
-        // Build a list of filenames so drupal_get_filename can use it.
-        if ($record->status) {
-          $lists['filepaths'][] = array('type' => $record->type, 'name' => $record->name, 'filepath' => $record->filename);
-        }
+      if (_system_list_rebuild(TRUE) && $type == 'module_enabled') {
+        return drupal_map_assoc(array_keys(config('system.module')->get()));
       }
-      foreach ($lists['theme'] as $key => $theme) {
-        if (!empty($theme->info['base theme'])) {
-          // Make a list of the theme's base themes.
-          require_once DRUPAL_ROOT . '/core/includes/theme.inc';
-          $lists['theme'][$key]->base_themes = drupal_find_base_themes($lists['theme'], $key);
-          // Don't proceed if there was a problem with the root base theme.
-          if (!current($lists['theme'][$key]->base_themes)) {
-            continue;
-          }
-          // Determine the root base theme.
-          $base_key = key($lists['theme'][$key]->base_themes);
-          // Add to the list of sub-themes for each of the theme's base themes.
-          foreach (array_keys($lists['theme'][$key]->base_themes) as $base_theme) {
-            $lists['theme'][$base_theme]->sub_themes[$key] = $lists['theme'][$key]->info['name'];
-          }
-          // Add the base theme's theme engine info.
-          $lists['theme'][$key]->info['engine'] = $lists['theme'][$base_key]->info['engine'];
-        }
-        else {
-          // A plain theme is its own base theme.
-          $base_key = $key;
-        }
-        // Set the theme engine prefix.
-        $lists['theme'][$key]->prefix = ($lists['theme'][$key]->info['engine'] == 'theme') ? $base_key : $lists['theme'][$key]->info['engine'];
-      }
-      cache('bootstrap')->set('system_list', $lists);
+      $lists = _system_list_rebuild();
+      $lists['bootstrap'] = array_keys($lists['bootstrap']);
     }
-    // To avoid a separate database lookup for the filepath, prime the
-    // drupal_get_filename() static cache with all enabled modules and themes.
     foreach ($lists['filepaths'] as $item) {
-      drupal_get_filename($item['type'], $item['name'], $item['filepath']);
-      drupal_classloader_register($item['name'], dirname($item['filepath']));
+      _system_list_warm($item['type'], $item['name'], $item['filepath']);
     }
   }
 
   return $lists[$type];
+}
+
+/**
+ * Rebuild the system list data structure.
+ */
+function _system_list_rebuild($test_only = FALSE) {
+  static $in_rebuild = FALSE;
+
+  if ($test_only) {
+    return $in_rebuild;
+  }
+  $in_rebuild = TRUE;
+  // The module name (rather than the filename) is used as the fallback
+  // weighting in order to guarantee consistent behavior across different
+  // Drupal installations, which might have modules installed in different
+  // locations in the file system. The ordering here must also be
+  // consistent with the one used in module_implements().
+  $enabled_themes = config('system.theme')->get();
+  $enabled_modules = config('system.module')->get();
+  _system_list_warm('module', 'system', 'core/modules/system.module', TRUE);
+  system_list_reset();
+  $module_data = system_rebuild_module_data(FALSE);
+  $theme_data = system_rebuild_theme_data(FALSE);
+  $lists = array(
+    'bootstrap' => array(),
+    'module_enabled' => array(),
+    'theme' => array(),
+    'filepaths' => array(),
+  );
+  foreach ($theme_data as $key => $theme) {
+    $lists['theme'][$key] = $theme;
+    $status = isset($enabled_themes[$key]);
+    $lists['theme'][$key]->status = $status;
+    $lists['theme'][$key]->name = $key;
+    // Build a list of filenames so drupal_get_filename can use it.
+    if ($status) {
+      $lists['filepaths'][] = array(
+        'type' => 'theme',
+        'name' => $key,
+        'filepath' => $theme->filename
+      );
+    }
+  }
+  foreach ($lists['theme'] as $key => $theme) {
+    if (!empty($theme->info['base theme'])) {
+      // Make a list of the theme's base themes.
+      require_once DRUPAL_ROOT . '/core/includes/theme.inc';
+      $lists['theme'][$key]->base_themes = drupal_find_base_themes($lists['theme'], $key);
+      // Don't proceed if there was a problem with the root base theme.
+      if (!current($lists['theme'][$key]->base_themes)) {
+        continue;
+      }
+      // Determine the root base theme.
+      $base_key = key($lists['theme'][$key]->base_themes);
+      // Add to the list of sub-themes for each of the theme's base themes.
+      foreach (array_keys($lists['theme'][$key]->base_themes) as $base_theme) {
+        $lists['theme'][$base_theme]->sub_themes[$key] = $lists['theme'][$key]->info['name'];
+      }
+      // Add the base theme's theme engine info.
+      $lists['theme'][$key]->info['engine'] = $lists['theme'][$base_key]->info['engine'];
+    }
+    else {
+      // A plain theme is its own base theme.
+      $base_key = $key;
+    }
+    // Set the theme engine prefix.
+    $lists['theme'][$key]->prefix = ($lists['theme'][$key]->info['engine'] == 'theme') ? $base_key : $lists['theme'][$key]->info['engine'];
+  }
+
+  foreach ($enabled_modules as $name => $weight) {
+    // Build a list of all enabled modules.
+    $lists['module_enabled'][$name] = $name;
+    $filename = $module_data[$name]->filename;
+    // Build a list of filenames so drupal_get_filename can use it.
+    $lists['filepaths'][] = array(
+      'type' => 'module',
+      'name' => $name,
+      'filepath' => $filename,
+    );
+    _system_list_warm('module', $name, $filename, TRUE);
+    foreach (bootstrap_hooks() as $hook) {
+      if (function_exists($name .'_' . $hook)) {
+        $lists['bootstrap'][$name] = $filename;
+      }
+    }
+  }
+  cache('bootstrap')->set('system_list', $lists);
+  cache('bootstrap')->set('bootstrap_modules', $lists['bootstrap']);
+  $in_rebuild = FALSE;
+  return $lists;
+}
+
+/**
+ * Prepares a module for loading and optionally calls drupal_load().
+ *
+ * @param string $type
+ *   The type of the extension (i.e. theme, theme_engine, module, profile).
+ * @param string $name
+ *   The name of the extension.
+ * @param string $filename
+ *   The filename of the extension.
+ * @param bool $load
+ *   (optional) Call drupal_load() for the extension. Defaults to FALSE.
+ */
+function _system_list_warm($type, $name, $filename, $load = FALSE) {
+  drupal_classloader_register($name, dirname($filename));
+  drupal_get_filename($type, $name, $filename);
+  if ($load) {
+    drupal_load($type, $name);
+  }
 }
 
 /**
@@ -394,27 +443,28 @@ function module_load_all_includes($type, $name = NULL) {
  * @see hook_modules_enabled()
  */
 function module_enable($module_list, $enable_dependencies = TRUE) {
+  // Get all module data so we can find dependencies, sort and copy to the
+  // installed modules config.
+  $all_modules = system_rebuild_module_data();
   if ($enable_dependencies) {
-    // Get all module data so we can find dependencies and sort.
-    $module_data = system_rebuild_module_data();
     // Create an associative array with weights as values.
     $module_list = array_flip(array_values($module_list));
 
     while (list($module) = each($module_list)) {
-      if (!isset($module_data[$module])) {
+      if (!isset($all_modules[$module])) {
         // This module is not found in the filesystem, abort.
         return FALSE;
       }
-      if ($module_data[$module]->status) {
+      if ($all_modules[$module]->status) {
         // Skip already enabled modules.
         unset($module_list[$module]);
         continue;
       }
-      $module_list[$module] = $module_data[$module]->sort;
+      $module_list[$module] = $all_modules[$module]->sort;
 
       // Add dependencies to the list, with a placeholder weight.
       // The new modules will be processed as the while loop continues.
-      foreach (array_keys($module_data[$module]->requires) as $dependency) {
+      foreach (array_keys($all_modules[$module]->requires) as $dependency) {
         if (!isset($module_list[$dependency])) {
           $module_list[$dependency] = 0;
         }
@@ -436,30 +486,36 @@ function module_enable($module_list, $enable_dependencies = TRUE) {
 
   $modules_installed = array();
   $modules_enabled = array();
+  $schema_store = drupal_container()->get('keyvalue')->get('system.module.schema');
   foreach ($module_list as $module) {
+    $config = config('system.module');
+    $disabled_config = config('system.module.disabled');
     // Only process modules that are not already enabled.
-    $existing = db_query("SELECT status FROM {system} WHERE type = :type AND name = :name", array(
-      ':type' => 'module',
-      ':name' => $module))
-      ->fetchObject();
-    if ($existing->status == 0) {
+    $enabled = TRUE;
+    $weight = 0;
+    if (!$schema_store->get($module)) {
+      $enabled = FALSE;
+    }
+    elseif (!$config->get($module)) {
+      $enabled = FALSE;
+      $weight = $disabled_config->get($module);
+    }
+    if (!$enabled) {
+      $config
+        ->set($module, $weight)
+        ->save('module_config_sort');
+      if ($weight) {
+        $disabled_config
+          ->clear($module)
+          ->save();
+      }
       // Load the module's code.
       drupal_load('module', $module);
       module_load_install($module);
 
-      // Update the database and module list to reflect the new module. This
-      // needs to be done first so that the module's hook implementations,
-      // hook_schema() in particular, can be called while it is being
-      // installed.
-      db_update('system')
-        ->fields(array('status' => 1))
-        ->condition('type', 'module')
-        ->condition('name', $module)
-        ->execute();
       // Refresh the module list to include it.
       system_list_reset();
       module_implements_reset();
-      _system_update_bootstrap_status();
       // Refresh the schema to include it.
       drupal_get_schema(NULL, TRUE);
       // Update the theme registry to include it.
@@ -566,13 +622,18 @@ function module_disable($module_list, $disable_dependents = TRUE) {
 
   foreach ($module_list as $module) {
     if (module_exists($module)) {
+      $config = config('system.module');
+      $disabled_config = config('system.module.disabled');
       module_load_install($module);
       module_invoke($module, 'disable');
-      db_update('system')
-        ->fields(array('status' => 0))
-        ->condition('type', 'module')
-        ->condition('name', $module)
-        ->execute();
+      if ($weight = $config->get($module)) {
+        $disabled_config
+          ->set($module, $weight)
+          ->save();
+      }
+      $config
+        ->clear($module)
+        ->save('module_config_sort');
       $invoke_modules[] = $module;
       watchdog('system', '%module module disabled.', array('%module' => $module), WATCHDOG_INFO);
     }
@@ -586,7 +647,6 @@ function module_disable($module_list, $disable_dependents = TRUE) {
     // Invoke hook_modules_disabled before disabling modules,
     // so we can still call module hooks to get information.
     module_invoke_all('modules_disabled', $invoke_modules);
-    _system_update_bootstrap_status();
     // Update the theme registry to remove the newly-disabled module.
     drupal_theme_rebuild();
   }
@@ -641,6 +701,8 @@ function module_uninstall($module_list = array(), $uninstall_dependents = TRUE) 
   }
 
   $storage = drupal_container()->get('config.storage');
+  $schema_store = drupal_container()->get('keyvalue')->get('system.module.schema');
+  $disabled_config = config('system.module.disabled');
   foreach ($module_list as $module) {
     // Uninstall the module.
     module_load_install($module);
@@ -654,8 +716,11 @@ function module_uninstall($module_list = array(), $uninstall_dependents = TRUE) 
     }
 
     watchdog('system', '%module module uninstalled.', array('%module' => $module), WATCHDOG_INFO);
-    drupal_set_installed_schema_version($module, SCHEMA_UNINSTALLED);
+    $schema_store->delete($module);
+    $disabled_config->clear($module);
   }
+  $disabled_config->save();
+  drupal_get_installed_schema_version(NULL, TRUE);
 
   if (!empty($module_list)) {
     // Call hook_module_uninstall to let other modules act
@@ -1122,4 +1187,63 @@ function drupal_alter($type, &$data, &$context1 = NULL, &$context2 = NULL) {
   foreach ($functions[$cid] as $function) {
     $function($data, $context1, $context2);
   }
+}
+
+/**
+ * Sets weight of a particular module.
+ *
+ * @param string $module
+ *   The name of the module (without the .module extension).
+ * @param int $weight
+ *   An integer representing the weight of the module.
+ */
+function module_set_weight($module, $weight) {
+  $config = config('system.module');
+
+  // If the module is enabled it will be in the system.module config file.
+  if ($config->get($module) !== NULL) {
+    $config
+      ->set($module, $weight)
+      ->save('module_config_sort');
+  }
+  // Before writing to the system.module.disabled file ensure that the module
+  // has been previously enabled.
+  else if (drupal_container()->get('keyvalue')->get('system.module.schema')->get($module) !== FALSE) {
+    $config_disabled = config('system.module.disabled');
+    // Only save non-zero weights to the system.module.disabled config file.
+    if ($weight) {
+      $config_disabled
+        ->set($module, $weight)
+        ->save();
+    }
+    else {
+      $config_disabled
+        ->clear($module)
+        ->save();
+    }
+  }
+}
+
+/**
+ * Helper function for Drupal\Core\Config\Config::save() to sort module data.
+ *
+ * @param array $data
+ *   An array of module configuration data.
+ *
+ * @return array
+ *   An array of module configuration data sorted by weight.
+ */
+function module_config_sort($data) {
+  $sort = array();
+  foreach ($data as $name => $weight) {
+    // We can't use the sign directly because + (ASCII 43) is before
+    // - (ASCII 45). So negative nubmers get a 0, non-negative numbers
+    // a 1 prefix.
+    $prefix = (int) ($weight >= 0);
+    // PHP_INT_MAX is at most 19 characters so make every number equally
+    // 19 digits long.
+    $sort[] = $prefix . sprintf('%019d', abs($weight)) . $name;
+  }
+  array_multisort($sort, SORT_STRING, $data);
+  return $data;
 }

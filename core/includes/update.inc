@@ -9,6 +9,7 @@
  */
 
 use Drupal\Component\Graph\Graph;
+use Drupal\Core\KeyValueStore\KeyValueFactory;
 use Drupal\Core\Config\FileStorage;
 use Drupal\Core\Config\ConfigException;
 
@@ -26,18 +27,23 @@ const REQUIRED_D7_SCHEMA_VERSION = '7069';
  * Disable any items in the {system} table that are not core compatible.
  */
 function update_fix_compatibility() {
-  $incompatible = array();
-  $result = db_query("SELECT name, type, status FROM {system} WHERE status = 1 AND type IN ('module','theme')");
-  foreach ($result as $row) {
-    if (update_check_incompatibility($row->name, $row->type)) {
-      $incompatible[] = $row->name;
+  foreach (array('module', 'theme') as $type) {
+    $config = config("system.$type");
+    $save = FALSE;
+    foreach ($config->get() as $name => $weight) {
+      if (update_check_incompatibility($name, $type)) {
+        $config->clear($name);
+        $save = TRUE;
+      }
     }
-  }
-  if (!empty($incompatible)) {
-    db_update('system')
-      ->fields(array('status' => 0))
-      ->condition('name', $incompatible, 'IN')
-      ->execute();
+    if ($save) {
+      if ($type == 'module') {
+        $config->save('module_config_sort');
+      }
+      else {
+        $config->save();
+      }
+    }
   }
 }
 
@@ -116,7 +122,12 @@ function update_prepare_d8_bootstrap() {
   // running an up-to-date version of Drupal 7 before proceeding. Note this has
   // to happen AFTER the database bootstraps because of
   // drupal_get_installed_schema_version().
-  $system_schema = drupal_get_installed_schema_version('system');
+  try {
+    $system_schema = drupal_get_installed_schema_version('system');
+  }
+  catch (\Exception $e) {
+    $system_schema = db_query('SELECT schema_version FROM {system} WHERE name = :system', array(':system' => 'system'))->fetchField();
+  }
   if ($system_schema < 8000) {
     $has_required_schema = $system_schema >= REQUIRED_D7_SCHEMA_VERSION;
     $requirements = array(
@@ -163,17 +174,52 @@ function update_prepare_d8_bootstrap() {
       // Bootstrap variables so we can update theme while preparing the update
       // process.
       drupal_bootstrap(DRUPAL_BOOTSTRAP_VARIABLES);
-      // Update the dynamic include paths that might be used before running the
-      // proper update functions.
-      update_prepare_stored_includes();
-      // Update the environment for the language bootstrap if needed.
-      update_prepare_d8_language();
 
       // Ensure the configuration directories exist and are writable, or create
       // them. If the directories have not been specified in settings.php and
       // created manually already, and either directory cannot be created by the
       // web server, an exception will be thrown, halting the update.
       drupal_install_config_directories();
+      $configs = array(
+        'module' => config('system.module'),
+        'disabled_module' => config('system.module.disabled'),
+        'theme' => config('system.theme'),
+      );
+      $schema_store = drupal_container()->get('keyvalue')->get('system.module.schema');
+      $result = db_query('SELECT name, status, weight, schema_version, type FROM {system} WHERE type = :theme OR (type = :module AND schema_version <> :schema_uninstalled)', array(
+        ':theme' => 'theme',
+        ':module' => 'module',
+        ':schema_uninstalled' => SCHEMA_UNINSTALLED,
+      ));
+
+      // We include system.module because in some cases, the
+      // system_rebuild_module_data() function isn't available this early.
+      require_once DRUPAL_ROOT . '/core/modules/system/system.module';
+      $module_data = system_rebuild_module_data();
+
+      // Loop through each extension from the system table.
+      foreach ($result as $file) {
+        if ($file->status && isset($module_data[$file->name])) {
+          $configs[$file->type]->set($file->name, $file->type == 'module' ? $file->weight : 1);
+        }
+        if ($file->type == 'module') {
+          $schema_store->set($file->name, $file->schema_version);
+          if (!$file->status && $file->weight) {
+            $configs['disabled_module']->set($file->name, $file->weight);
+          }
+        }
+      }
+      foreach ($configs as $key => $config) {
+        $config->save($key == 'module' ? 'module_config_sort' : NULL);
+      }
+
+      // Update the dynamic include paths that might be used before running the
+      // proper update functions.
+      update_prepare_stored_includes();
+      // Update the environment for the language bootstrap if needed.
+      update_prepare_d8_language();
+      // Prime the classloader.
+      system_list('module_enabled');
 
       // Change language column to langcode in url_alias.
       if (db_table_exists('url_alias') && db_field_exists('url_alias', 'language')) {
@@ -259,7 +305,6 @@ function update_prepare_d8_language() {
     // version of this function to ensure schema conflicts don't happen due to
     // our updated data.
     $modules = array('language');
-    update_module_add_to_system($modules);
     update_module_enable($modules);
 
     // Rename language column to langcode and set it again as the primary key.
@@ -331,41 +376,6 @@ function update_prepare_d8_language() {
 }
 
 /**
- * Adds modules to the system table in a Drupal core update.
- *
- * @param $modules
- *   Array of module names.
- */
-function update_module_add_to_system($modules = array()) {
-  // Insert module data, so we can enable the module. Calling a full module
-  // list rebuild so early is costly and complex, so we just have a stop-gap.
-  $info_defaults = array(
-    'dependencies' => array(),
-    'description' => '',
-    'package' => 'Other',
-    'version' => NULL,
-    'php' => DRUPAL_MINIMUM_PHP,
-    'files' => array(),
-    'bootstrap' => 0,
-  );
-  foreach ($modules as $module) {
-    $module_info = drupal_parse_info_file('core/modules/' . $module . '/' . $module . '.info');
-    db_insert('system')
-      ->fields(array(
-        'filename' => 'core/modules/' . $module . '/' . $module . '.module',
-        'name' => $module,
-        'type' => 'module',
-        'status' => 0,
-        'bootstrap' => 0,
-        'schema_version' => -1,
-        'weight' => 0,
-        'info' => serialize($module_info + $info_defaults),
-      ))
-      ->execute();
-  }
-}
-
-/**
  * Perform Drupal 7.x to 8.x updates that are required for update.php
  * to function properly.
  *
@@ -387,6 +397,7 @@ function update_fix_d8_requirements() {
  * Helper function to install a new module in Drupal 8 via hook_update_N().
  */
 function update_module_enable(array $modules) {
+  $store = drupal_container()->get('keyvalue')->get('system.module.schema');
   foreach ($modules as $module) {
     // Check for initial schema and install it. The schema version of a newly
     // installed module is always 0. Using 8000 here would be inconsistent
@@ -399,13 +410,13 @@ function update_module_enable(array $modules) {
         db_create_table($table, $spec);
       }
     }
+    // Enable the module with a weight of 0.
+    config('system.module')
+      ->set($module, 0)
+      ->save('module_config_sort');
     // Change the schema version from SCHEMA_UNINSTALLED to 0, so any module
     // updates since the module's inception are executed in a core upgrade.
-    db_update('system')
-      ->condition('type', 'module')
-      ->condition('name', $module)
-      ->fields(array('schema_version' => 0, 'status' => 1))
-      ->execute();
+    $store->set($module, 0);
 
     // system_list_reset() is in module.inc but that would only be available
     // once the variable bootstrap is done.
@@ -940,8 +951,7 @@ function update_retrieve_dependencies() {
   $return = array();
   // Get a list of installed modules, arranged so that we invoke their hooks in
   // the same order that module_invoke_all() does.
-  $modules = db_query("SELECT name FROM {system} WHERE type = 'module' AND schema_version <> :schema ORDER BY weight ASC, name ASC", array(':schema' => SCHEMA_UNINSTALLED))->fetchCol();
-  foreach ($modules as $module) {
+  foreach (config('system.module')->get() as $module => $data) {
     $function = $module . '_update_dependencies';
     if (function_exists($function)) {
       $result = $function();

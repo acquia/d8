@@ -342,11 +342,18 @@ class Config {
   /**
    * Saves the configuration object.
    *
+   * @param mixed $sorter
+   *   (optional) A callable which sorts the data before save. FALSE to disable
+   *   sorting. Defaults to NULL thereby using
+   *   Drupal\Core\Config\Config::sortByKey().
+   *
    * @return Drupal\Core\Config\Config
    *   The configuration object.
    */
-  public function save() {
-    $this->sortByKey($this->data);
+  public function save($sorter = NULL) {
+    if ($sorter !== FALSE) {
+      $this->data = call_user_func($sorter ? $sorter : array($this, 'sortByKey'), $this->data);
+    }
     $this->storage->write($this->name, $this->data);
     $this->isNew = FALSE;
     $this->notify('save');
@@ -380,13 +387,14 @@ class Config {
    * @param array $data
    *   An associative array to sort recursively by key name.
    */
-  public function sortByKey(array &$data) {
+  public function sortByKey(array $data) {
     ksort($data);
     foreach ($data as &$value) {
       if (is_array($value)) {
-        $this->sortByKey($value);
+        $value = $this->sortByKey($value);
       }
     }
+    return $data;
   }
 
   /**
