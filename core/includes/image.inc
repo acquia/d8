@@ -41,7 +41,7 @@
  */
 function image_get_available_toolkits() {
   // hook_image_toolkits returns an array of toolkit names.
-  $toolkits = module_invoke_all('image_toolkits');
+  $toolkits = drupal_container()->get('extension_handler')->moduleInvokeAll('image_toolkits');
 
   $output = array();
   foreach ($toolkits as $name => $info) {

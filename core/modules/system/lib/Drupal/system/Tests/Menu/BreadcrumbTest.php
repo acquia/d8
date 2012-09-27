@@ -32,7 +32,7 @@ class BreadcrumbTest extends MenuTestBase {
   function setUp() {
     parent::setUp();
 
-    $perms = array_keys(module_invoke_all('permission'));
+    $perms = array_keys(drupal_container()->get('extension_handler')->moduleInvokeAll('permission'));
     $this->admin_user = $this->drupalCreateUser($perms);
     $this->drupalLogin($this->admin_user);
 

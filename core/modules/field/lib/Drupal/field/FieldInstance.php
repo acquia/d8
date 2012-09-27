@@ -53,7 +53,7 @@ class FieldInstance implements \ArrayAccess {
         'field' => field_info_field($this->definition['field_name']),
         'instance' => $this,
       );
-      drupal_alter(array('field_widget_properties', 'field_widget_properties_' . $this->definition['entity_type']), $widget_properties, $context);
+      drupal_container()->get('extension_handler')->alter(array('field_widget_properties', 'field_widget_properties_' . $this->definition['entity_type']), $widget_properties, $context);
 
       $options = array(
         'instance' => $this,

@@ -69,7 +69,7 @@ function update_get_projects() {
         update_process_info_list($projects, $theme_data, 'theme', FALSE);
       }
       // Allow other modules to alter projects before fetching and comparing.
-      drupal_alter('update_projects', $projects);
+      drupal_container()->get('extension_handler')->alter('update_projects', $projects);
       // Cache the site's project data for at most 1 hour.
       _update_cache_set('update_project_projects', $projects, REQUEST_TIME + 3600);
     }
@@ -357,7 +357,7 @@ function update_calculate_project_data($available) {
   // Give other modules a chance to alter the status (for example, to allow a
   // contrib module to provide fine-grained settings to ignore specific
   // projects or releases).
-  drupal_alter('update_status', $projects);
+  drupal_container()->get('extension_handler')->alter('update_status', $projects);
 
   // Cache the site's update status for at most 1 hour.
   _update_cache_set('update_project_data', $projects, REQUEST_TIME + 3600);

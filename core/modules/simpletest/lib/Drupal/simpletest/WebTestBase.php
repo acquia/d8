@@ -7,6 +7,8 @@
 
 namespace Drupal\simpletest;
 
+use Drupal\Core\Extension\Modules;
+use Drupal\Core\Cache\CacheFactory;
 use Drupal\Core\DrupalKernel;
 use Drupal\Core\Database\Database;
 use Drupal\Core\Database\ConnectionNotDefinedException;
@@ -153,6 +155,8 @@ abstract class WebTestBase extends TestBase {
    * The kernel used in this test.
    */
   protected $kernel;
+
+  protected $originalModuleService;
 
   /**
    * Constructor for Drupal\simpletest\WebTestBase.
@@ -485,7 +489,7 @@ abstract class WebTestBase extends TestBase {
     $available = &drupal_static(__FUNCTION__);
 
     if (!isset($available) || $reset) {
-      $available = array_keys(module_invoke_all('permission'));
+      $available = array_keys(drupal_container()->get('extension_handler')->moduleInvokeAll('permission'));
     }
 
     $valid = TRUE;
@@ -601,6 +605,9 @@ abstract class WebTestBase extends TestBase {
     // progressive), so we need to temporarily pretend there was no batch.
     // Backup the currently running Simpletest batch.
     $this->originalBatch = batch_get();
+
+    // Store the original modules object so that it can be restored at tearDown.
+    $this->originalModuleService = drupal_container()->get('extension_handler');
 
     // Create the database prefix for this test.
     $this->prepareDatabasePrefix();
@@ -784,6 +791,9 @@ abstract class WebTestBase extends TestBase {
    * and reset the database prefix.
    */
   protected function tearDown() {
+    // Restore the original Modules object.
+    drupal_container()->set('modules', $this->originalModuleService);
+
     // Ensure that TestBase::changeDatabasePrefix() has run and TestBase::$setup
     // was not tricked into TRUE, since the following code would delete the
     // entire parent site otherwise.
@@ -818,8 +828,6 @@ abstract class WebTestBase extends TestBase {
 
     // Reload module list and implementations to ensure that test module hooks
     // aren't called after tests.
-    system_list_reset();
-    module_list_reset();
     module_implements_reset();
 
     // Reset the Field API.

@@ -281,7 +281,7 @@ function image_file_download($uri) {
     // Check that the file exists and is an image.
     if ($info = image_get_info($uri)) {
       // Check the permissions of the original to grant access to this image.
-      $headers = module_invoke_all('file_download', $original_uri);
+      $headers = drupal_container()->get('extension_handler')->moduleInvokeAll('file_download', $original_uri);
       if (!in_array(-1, $headers)) {
         return array(
           // Send headers describing the image's size, and MIME-type...
@@ -550,7 +550,7 @@ function image_config_import_delete($name, $new_config, $old_config) {
  */
 function image_styles() {
   // @todo Configuration must not be statically cached nor cache-system cached.
-  //   However, there's a drupal_alter() involved here.
+  //   However, there's a drupal_container()->get('extension_handler')->alter() involved here.
 
 //  $styles = &drupal_static(__FUNCTION__);
 //
@@ -569,7 +569,7 @@ function image_styles() {
         $style = image_style_load(str_replace('image.style.', '', $config_name));
         $styles[$style['name']] = $style;
       }
-      drupal_alter('image_styles', $styles);
+      drupal_container()->get('extension_handler')->alter('image_styles', $styles);
 //      cache()->set('image_styles', $styles);
 //    }
 //  }
@@ -641,7 +641,7 @@ function image_style_save($style) {
 
   // Let other modules update as necessary on save.
   $style['is_new'] = $is_new;
-  module_invoke_all('image_style_save', $style);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('image_style_save', $style);
 
   // Clear all caches and flush.
   image_style_flush($style);
@@ -669,7 +669,7 @@ function image_style_delete($style, $replacement_style_name = '') {
   // Let other modules update as necessary on save.
   $style['old_name'] = $style['name'];
   $style['name'] = $replacement_style_name;
-  module_invoke_all('image_style_delete', $style);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('image_style_delete', $style);
 
   return TRUE;
 }
@@ -743,7 +743,7 @@ function image_style_deliver($style, $scheme) {
       file_download($scheme, file_uri_target($derivative_uri));
     }
     else {
-      $headers = module_invoke_all('file_download', $image_uri);
+      $headers = drupal_container()->get('extension_handler')->moduleInvokeAll('file_download', $image_uri);
       if (in_array(-1, $headers) || empty($headers)) {
         throw new AccessDeniedHttpException();
       }
@@ -897,7 +897,7 @@ function image_style_flush($style) {
   }
 
   // Let other modules update as necessary on flush.
-  module_invoke_all('image_style_flush', $style);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('image_style_flush', $style);
 
 //  // Clear image style and effect caches.
 //  cache()->delete('image_styles');
@@ -910,7 +910,7 @@ function image_style_flush($style) {
   drupal_theme_rebuild();
 
   // Clear page caches when flushing.
-  if (module_exists('block')) {
+  if (drupal_container()->get('extension_handler')->moduleExists('block')) {
     cache('block')->flush();
   }
   cache('page')->flush();
@@ -993,7 +993,7 @@ function image_effect_definitions() {
     else {
       $effects = array();
       include_once DRUPAL_ROOT . '/core/modules/image/image.effects.inc';
-      foreach (module_implements('image_effect_info') as $module) {
+      foreach (drupal_container()->get('extension_handler')->moduleImplements('image_effect_info') as $module) {
         foreach (module_invoke($module, 'image_effect_info') as $name => $effect) {
           // Ensure the current toolkit supports the effect.
           $effect['module'] = $module;
@@ -1003,7 +1003,7 @@ function image_effect_definitions() {
         }
       }
       uasort($effects, '_image_effect_definitions_sort');
-      drupal_alter('image_effect_info', $effects);
+      drupal_container()->get('extension_handler')->alter('image_effect_info', $effects);
       cache()->set("image_effects:$langcode", $effects);
     }
   }

@@ -826,7 +826,7 @@ class EntityFieldQuery {
    */
   public function execute() {
     // Give a chance to other modules to alter the query.
-    drupal_alter('entity_query', $this);
+    drupal_container()->get('extension_handler')->alter('entity_query', $this);
     $this->altered = TRUE;
 
     // Initialize the pager.

@@ -195,7 +195,7 @@ class ConfigStorageController implements EntityStorageControllerInterface {
    */
   protected function attachLoad(&$queried_entities, $revision_id = FALSE) {
     // Call hook_entity_load().
-    foreach (module_implements('entity_load') as $module) {
+    foreach (drupal_container()->get('extension_handler')->moduleImplements('entity_load') as $module) {
       $function = $module . '_entity_load';
       $function($queried_entities, $this->entityType);
     }
@@ -203,7 +203,7 @@ class ConfigStorageController implements EntityStorageControllerInterface {
     // always the queried entities, followed by additional arguments set in
     // $this->hookLoadArguments.
     $args = array_merge(array($queried_entities), $this->hookLoadArguments);
-    foreach (module_implements($this->entityType . '_load') as $module) {
+    foreach (drupal_container()->get('extension_handler')->moduleImplements($this->entityType . '_load') as $module) {
       call_user_func_array($module . '_' . $this->entityType . '_load', $args);
     }
   }
@@ -356,8 +356,8 @@ class ConfigStorageController implements EntityStorageControllerInterface {
    */
   protected function invokeHook($hook, EntityInterface $entity) {
     // Invoke the hook.
-    module_invoke_all($this->entityType . '_' . $hook, $entity);
+    drupal_container()->get('extension_handler')->moduleInvokeAll($this->entityType . '_' . $hook, $entity);
     // Invoke the respective entity-level hook.
-    module_invoke_all('entity_' . $hook, $entity, $this->entityType);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('entity_' . $hook, $entity, $this->entityType);
   }
 }

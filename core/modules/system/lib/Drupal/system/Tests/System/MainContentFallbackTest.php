@@ -56,8 +56,8 @@ class MainContentFallbackTest extends WebTestBase {
     $edit['modules[Core][block][enable]'] = FALSE;
     $this->drupalPost('admin/modules', $edit, t('Save configuration'));
     $this->assertText(t('The configuration options have been saved.'), t('Modules status has been updated.'));
-    system_list_reset();
-    $this->assertFalse(module_exists('block'), t('Block module disabled.'));
+    drupal_container()->get('extension_handler')->systemListReset();
+    $this->assertFalse(drupal_container()->get('extension_handler')->moduleExists('block'), t('Block module disabled.'));
 
     // At this point, no region is filled and fallback should be triggered.
     $this->drupalGet('admin/config/system/site-information');
@@ -90,7 +90,7 @@ class MainContentFallbackTest extends WebTestBase {
     $edit['modules[Core][block][enable]'] = 'block';
     $this->drupalPost('admin/modules', $edit, t('Save configuration'));
     $this->assertText(t('The configuration options have been saved.'), t('Modules status has been updated.'));
-    system_list_reset();
-    $this->assertTrue(module_exists('block'), t('Block module re-enabled.'));
+    drupal_container()->get('extension_handler')->systemListReset();
+    $this->assertTrue(drupal_container()->get('extension_handler')->moduleExists('block'), t('Block module re-enabled.'));
   }
 }

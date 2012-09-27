@@ -604,7 +604,7 @@ function shortcut_set_delete_form($form, &$form_state, $shortcut_set) {
 
   // Also, if a module implements hook_shortcut_default_set(), it's possible
   // that this set is being used as a default set. Add a message about that too.
-  if (count(module_implements('shortcut_default_set')) > 0) {
+  if (count(drupal_container()->get('extension_handler')->moduleImplements('shortcut_default_set')) > 0) {
     $info .= '<p>' . t('If you have chosen this shortcut set as the default for some or all users, they may also be affected by deleting it.') . '</p>';
   }
 

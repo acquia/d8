@@ -460,7 +460,7 @@ function aggregator_save_category($edit) {
         ->condition('cid', $edit['cid'])
         ->execute();
       // Make sure there is no active block for this category.
-      if (module_exists('block')) {
+      if (drupal_container()->get('extension_handler')->moduleExists('block')) {
         db_delete('block')
           ->condition('module', 'aggregator')
           ->condition('delta', 'category-' . $edit['cid'])
@@ -527,7 +527,7 @@ function aggregator_save_feed($edit) {
       ->condition('fid', $edit['fid'])
       ->execute();
     // Make sure there is no active block for this feed.
-    if (module_exists('block')) {
+    if (drupal_container()->get('extension_handler')->moduleExists('block')) {
       db_delete('block')
         ->condition('module', 'aggregator')
         ->condition('delta', 'feed-' . $edit['fid'])
@@ -576,7 +576,7 @@ function aggregator_save_feed($edit) {
 function aggregator_remove($feed) {
   _aggregator_get_variables();
   // Call hook_aggregator_remove() on all modules.
-  module_invoke_all('aggregator_remove', $feed);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('aggregator_remove', $feed);
   // Reset feed.
   db_update('aggregator_feed')
     ->condition('fid', $feed->fid)
@@ -763,14 +763,14 @@ function aggregator_filter_xss($value) {
 function aggregator_sanitize_configuration() {
   $reset = FALSE;
   list($fetcher, $parser, $processors) = _aggregator_get_variables();
-  if (!module_exists($fetcher)) {
+  if (!drupal_container()->get('extension_handler')->moduleExists($fetcher)) {
     $reset = TRUE;
   }
-  if (!module_exists($parser)) {
+  if (!drupal_container()->get('extension_handler')->moduleExists($parser)) {
     $reset = TRUE;
   }
   foreach ($processors as $processor) {
-    if (!module_exists($processor)) {
+    if (!drupal_container()->get('extension_handler')->moduleExists($processor)) {
       $reset = TRUE;
       break;
     }

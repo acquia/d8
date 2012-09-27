@@ -1075,7 +1075,7 @@ function field_ui_display_overview_form($form, &$form_state, $entity_type, $bund
         'view_mode' => $view_mode,
         'form' => $form,
       );
-      drupal_alter('field_formatter_settings_form', $settings_form, $form_state, $context);
+      drupal_container()->get('extension_handler')->alter('field_formatter_settings_form', $settings_form, $form_state, $context);
 
       if ($settings_form) {
         $table[$name]['format']['#cell_attributes'] = array('colspan' => 3);
@@ -1119,7 +1119,7 @@ function field_ui_display_overview_form($form, &$form_state, $entity_type, $bund
         'instance' => $instance,
         'view_mode' => $view_mode,
       );
-      drupal_alter('field_formatter_settings_summary', $summary, $context);
+      drupal_container()->get('extension_handler')->alter('field_formatter_settings_summary', $summary, $context);
 
       $table[$name]['settings_summary'] = array();
       $table[$name]['settings_edit'] = array();

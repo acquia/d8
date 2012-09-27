@@ -13,7 +13,7 @@
 function node_overview_types() {
   $types = node_type_get_types();
   $names = node_type_get_names();
-  $field_ui = module_exists('field_ui');
+  $field_ui = drupal_container()->get('extension_handler')->moduleExists('field_ui');
   $header = array(t('Name'), array('data' => t('Operations'), 'colspan' => $field_ui ? '4' : '2'));
   $rows = array();
 
@@ -184,7 +184,7 @@ function node_type_form($form, &$form_state, $type = NULL) {
     ),
     '#description' => t('Users with the <em>Administer content</em> permission will be able to override these options.'),
   );
-  if (module_exists('language')) {
+  if (drupal_container()->get('extension_handler')->moduleExists('language')) {
     $lang_options = array();
 
     $languages = language_list(LANGUAGE_ALL);
@@ -419,7 +419,7 @@ function node_node_type_update($info) {
  *   then nothing happens.
  */
 function node_type_reset($type) {
-  $info_array = module_invoke_all('node_info');
+  $info_array = drupal_container()->get('extension_handler')->moduleInvokeAll('node_info');
   if (isset($info_array[$type->orig_type])) {
     $info_array[$type->orig_type]['type'] = $type->orig_type;
     $info = node_type_set_defaults($info_array[$type->orig_type]);

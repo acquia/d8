@@ -1024,7 +1024,7 @@ function comment_view(Comment $comment, Node $node, $view_mode = 'full', $langco
   }
 
   // Allow modules to modify the structured comment.
-  drupal_alter(array('comment_view', 'entity_view'), $build, $comment);
+  drupal_container()->get('extension_handler')->alter(array('comment_view', 'entity_view'), $build, $comment);
 
   return $build;
 }
@@ -1055,7 +1055,7 @@ function comment_build_content(Comment $comment, Node $node, $view_mode = 'full'
 
   // Allow modules to change the view mode.
   $context = array('langcode' => $langcode);
-  drupal_alter('entity_view_mode', $view_mode, $comment, $context);
+  drupal_container()->get('extension_handler')->alter('entity_view_mode', $view_mode, $comment, $context);
 
   // Build fields content.
   field_attach_prepare_view('comment', array($comment->cid => $comment), $view_mode, $langcode);
@@ -1076,8 +1076,8 @@ function comment_build_content(Comment $comment, Node $node, $view_mode = 'full'
   }
 
   // Allow modules to make their own additions to the comment.
-  module_invoke_all('comment_view', $comment, $view_mode, $langcode);
-  module_invoke_all('entity_view', $comment, $view_mode, $langcode);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('comment_view', $comment, $view_mode, $langcode);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('entity_view', $comment, $view_mode, $langcode);
 }
 
 /**

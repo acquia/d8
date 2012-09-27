@@ -65,7 +65,7 @@ class CommentFieldsTest extends CommentTestBase {
     $edit['modules[Core][comment][enable]'] = FALSE;
     $this->drupalPost('admin/modules', $edit, t('Save configuration'));
     $this->resetAll();
-    $this->assertFalse(module_exists('comment'), t('Comment module disabled.'));
+    $this->assertFalse(drupal_container()->get('extension_handler')->moduleExists('comment'), t('Comment module disabled.'));
 
     // Enable core content type modules (book, and poll).
     $edit = array();
@@ -78,7 +78,7 @@ class CommentFieldsTest extends CommentTestBase {
     $edit['modules[Core][comment][enable]'] = 'comment';
     $this->drupalPost('admin/modules', $edit, t('Save configuration'));
     $this->resetAll();
-    $this->assertTrue(module_exists('comment'), t('Comment module enabled.'));
+    $this->assertTrue(drupal_container()->get('extension_handler')->moduleExists('comment'), t('Comment module enabled.'));
 
     // Create nodes of each type.
     $book_node = $this->drupalCreateNode(array('type' => 'book'));

@@ -1,5 +1,7 @@
 <?php
 
+use Drupal\Core\Cache\CacheFactory;
+use Drupal\Core\Extension\Modules;
 use Drupal\Core\DrupalKernel;
 use Drupal\Core\Database\Database;
 use Drupal\Core\Database\Install\TaskException;
@@ -325,6 +327,14 @@ function install_begin_request(&$install_state) {
     $container
       ->register('state.storage', 'Drupal\Core\KeyValueStore\DatabaseStorage')
       ->addArgument('state');
+    $cache = CacheFactory::get('cache');
+    $bootstrap_cache = CacheFactory::get('bootstrap');
+
+    $container->register('extension_handler', 'Drupal\Core\ExtensionHandler')
+      ->addArgument(new Reference('config.factory'))
+      ->addArgument($cache)
+      ->addArgument($bootstrap_cache);
+
     drupal_container($container);
   }
 
@@ -335,7 +345,8 @@ function install_begin_request(&$install_state) {
   // Override the module list with a minimal set of modules.
   $module_list['system']['filename'] = 'core/modules/system/system.module';
   $module_list['user']['filename']   = 'core/modules/user/user.module';
-  module_list(NULL, $module_list);
+  drupal_container()->get('extension_handler')->moduleList(NULL, $module_list, TRUE);
+
   drupal_load('module', 'system');
   drupal_load('module', 'user');
 
@@ -1467,9 +1478,6 @@ function install_load_profile(&$install_state) {
  *   An array of information about the current installation state.
  */
 function install_bootstrap_full(&$install_state) {
-  // Clear the module list that was overriden earlier in the process.
-  // This will allow all freshly installed modules to be loaded.
-  module_list_reset();
   // @todo The constructor parameters for the Kernel class are for environment,
   // e.g. 'prod', 'dev', and a boolean indicating whether it is in debug mode.
   // Drupal does not currently make use of either of these, though that may

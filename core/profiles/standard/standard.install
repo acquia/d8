@@ -384,7 +384,7 @@ function standard_install() {
   $admin_role->name = 'Administrator';
   $admin_role->weight = 2;
   user_role_save($admin_role);
-  user_role_grant_permissions($admin_role->rid, array_keys(module_invoke_all('permission')));
+  user_role_grant_permissions($admin_role->rid, array_keys(drupal_container()->get('extension_handler')->moduleInvokeAll('permission')));
   // Set this as the administrator role.
   $user_settings->set('admin_role', $admin_role->rid)->save();
 

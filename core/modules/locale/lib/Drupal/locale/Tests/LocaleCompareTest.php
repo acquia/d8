@@ -48,7 +48,7 @@ class LocaleCompareTest extends WebTestBase {
     // info of the locale_test and locale_test_disabled modules.
     variable_set('locale_translation_test_system_info_alter', TRUE);
     // Reset system lists to reflect changes.
-    system_list_reset();
+    drupal_container()->get('extension_handler')->systemListReset();
 
     // Check if interface translation data is collected from hook_info.
     drupal_static_reset('locale_translation_project_list');
@@ -78,7 +78,7 @@ class LocaleCompareTest extends WebTestBase {
     // Return the locale test modules back to their hidden state.
     variable_del('locale_translation_test_system_info_alter');
     // Reset system lists to reflect changes.
-    system_list_reset();
+    drupal_container()->get('extension_handler')->systemListReset();
   }
 
 }

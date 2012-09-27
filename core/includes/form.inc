@@ -769,7 +769,7 @@ function drupal_retrieve_form($form_id, &$form_state) {
     // So, we call the hook if $forms isn't yet populated, OR if it doesn't
     // yet have an entry for the requested form_id.
     if (!isset($forms) || !isset($forms[$form_id])) {
-      $forms = module_invoke_all('forms', $form_id, $args);
+      $forms = drupal_container()->get('extension_handler')->moduleInvokeAll('forms', $form_id, $args);
     }
     $form_definition = $forms[$form_id];
     if (isset($form_definition['callback arguments'])) {
@@ -1103,7 +1103,7 @@ function drupal_prepare_form($form_id, &$form, &$form_state) {
     $hooks[] = 'form_' . $form_state['build_info']['base_form_id'];
   }
   $hooks[] = 'form_' . $form_id;
-  drupal_alter($hooks, $form, $form_state, $form_id);
+  drupal_container()->get('extension_handler')->alter($hooks, $form, $form_state, $form_id);
 }
 
 
@@ -4858,7 +4858,7 @@ function batch_process($redirect = NULL, $url = 'batch', $redirect_callback = 'd
     // The batch is now completely built. Allow other modules to make changes
     // to the batch so that it is easier to reuse batch processes in other
     // environments.
-    drupal_alter('batch', $batch);
+    drupal_container()->get('extension_handler')->alter('batch', $batch);
 
     // Assign an arbitrary id: don't rely on a serial column in the 'batch'
     // table, since non-progressive batches skip database storage completely.

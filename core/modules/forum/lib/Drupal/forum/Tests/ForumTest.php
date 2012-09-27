@@ -108,8 +108,8 @@ class ForumTest extends WebTestBase {
     $edit['modules[Core][forum][enable]'] = FALSE;
     $this->drupalPost('admin/modules', $edit, t('Save configuration'));
     $this->assertText(t('The configuration options have been saved.'), t('Modules status has been updated.'));
-    system_list_reset();
-    $this->assertFalse(module_exists('forum'), t('Forum module is not enabled.'));
+    drupal_container()->get('extension_handler')->systemListReset();
+    $this->assertFalse(drupal_container()->get('extension_handler')->moduleExists('forum'), t('Forum module is not enabled.'));
 
     // Attempt to re-enable the Forum module and ensure it does not try to
     // recreate the taxonomy_forums field.
@@ -117,8 +117,8 @@ class ForumTest extends WebTestBase {
     $edit['modules[Core][forum][enable]'] = 'forum';
     $this->drupalPost('admin/modules', $edit, t('Save configuration'));
     $this->assertText(t('The configuration options have been saved.'), t('Modules status has been updated.'));
-    system_list_reset();
-    $this->assertTrue(module_exists('forum'), t('Forum module is enabled.'));
+    drupal_container()->get('extension_handler')->systemListReset();
+    $this->assertTrue(drupal_container()->get('extension_handler')->moduleExists('forum'), t('Forum module is enabled.'));
   }
 
   /**

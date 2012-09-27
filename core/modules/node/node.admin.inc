@@ -90,7 +90,7 @@ function node_filters() {
     ),
   );
   // Include translation states if we have this module enabled
-  if (module_exists('translation')) {
+  if (drupal_container()->get('extension_handler')->moduleExists('translation')) {
     $filters['status']['options'] += array(
       'translate-0' => t('Up to date translation'),
       'translate-1' => t('Outdated translation'),
@@ -414,7 +414,7 @@ function node_admin_nodes() {
     '#access' => $admin_access,
   );
   $options = array();
-  foreach (module_invoke_all('node_operations') as $operation => $array) {
+  foreach (drupal_container()->get('extension_handler')->moduleInvokeAll('node_operations') as $operation => $array) {
     $options[$operation] = $array['label'];
   }
   $form['options']['operation'] = array(
@@ -616,7 +616,7 @@ function node_admin_nodes_validate($form, &$form_state) {
  * @see node_filter_form_submit()
  */
 function node_admin_nodes_submit($form, &$form_state) {
-  $operations = module_invoke_all('node_operations');
+  $operations = drupal_container()->get('extension_handler')->moduleInvokeAll('node_operations');
   $operation = $operations[$form_state['values']['operation']];
   // Filter out unchecked nodes
   $nodes = array_filter($form_state['values']['nodes']);

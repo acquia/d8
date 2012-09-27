@@ -32,7 +32,7 @@ class MaintenanceModeSubscriber implements EventSubscriberInterface {
     // be used to change the path. Code later will not use the $read_only_path
     // variable.
     $read_only_path = !empty($path) ? $path : $event->getRequest()->attributes->get('system_path');
-    drupal_alter('menu_site_status', $status, $read_only_path);
+    drupal_container()->get('extension_handler')->alter('menu_site_status', $status, $read_only_path);
 
     // Only continue if the site is online.
     if ($status != MENU_SITE_ONLINE) {

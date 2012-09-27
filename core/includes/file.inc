@@ -190,12 +190,12 @@ function file_get_stream_wrappers($filter = STREAM_WRAPPERS_ALL) {
   $wrappers_storage = &drupal_static(__FUNCTION__);
 
   if (!isset($wrappers_storage)) {
-    $wrappers = module_invoke_all('stream_wrappers');
+    $wrappers = drupal_container()->get('extension_handler')->moduleInvokeAll('stream_wrappers');
     foreach ($wrappers as $scheme => $info) {
       // Add defaults.
       $wrappers[$scheme] += array('type' => STREAM_WRAPPERS_NORMAL);
     }
-    drupal_alter('stream_wrappers', $wrappers);
+    drupal_container()->get('extension_handler')->alter('stream_wrappers', $wrappers);
     $existing = stream_get_wrappers();
     foreach ($wrappers as $scheme => $info) {
       // We only register classes that implement our interface.
@@ -442,7 +442,7 @@ function file_stream_wrapper_get_instance_by_scheme($scheme) {
 function file_create_url($uri) {
   // Allow the URI to be altered, e.g. to serve a file from a CDN or static
   // file server.
-  drupal_alter('file_url', $uri);
+  drupal_container()->get('extension_handler')->alter('file_url', $uri);
 
   $scheme = file_uri_scheme($uri);
 
@@ -1373,11 +1373,11 @@ function file_download() {
   $uri = $scheme . '://' . $target;
   if (file_stream_wrapper_valid_scheme($scheme) && file_exists($uri)) {
     // Let other modules provide headers and controls access to the file.
-    // module_invoke_all() uses array_merge_recursive() which merges header
+    // drupal_container()->get('extension_handler')->moduleInvokeAll() uses array_merge_recursive() which merges header
     // values into a new array. To avoid that and allow modules to override
     // headers instead, use array_merge() to merge the returned arrays.
     $headers = array();
-    foreach (module_implements('file_download') as $module) {
+    foreach (drupal_container()->get('extension_handler')->moduleImplements('file_download') as $module) {
       $function = $module . '_file_download';
       $result = $function($uri);
       if ($result == -1) {

@@ -25,9 +25,10 @@ class ModuleApiTest extends WebTestBase {
   }
 
   /**
-   * The basic functionality of module_list().
+   * The basic functionality of drupal_container()->get('extension_handler')->moduleList().
    */
   function testModuleList() {
+    $extension_handler = drupal_container()->get('extension_handler');
     // Build a list of modules, sorted alphabetically.
     $profile_info = install_profile_info('standard', 'en');
     $module_list = $profile_info['dependencies'];
@@ -36,7 +37,7 @@ class ModuleApiTest extends WebTestBase {
     $module_list[] = 'standard';
 
     sort($module_list);
-    // Compare this list to the one returned by module_list(). We expect them
+    // Compare this list to the one returned by drupal_container()->get('extension_handler')->moduleList(). We expect them
     // to match, since all default profile modules have a weight equal to 0
     // (except for block.module, which has a lower weight but comes first in
     // the alphabet anyway).
@@ -51,7 +52,7 @@ class ModuleApiTest extends WebTestBase {
     // Try to mess with the module weights.
     module_set_weight('contact', 20);
     // Reset the module list.
-    system_list_reset();
+    $extension_handler->systemListReset();
     // Move contact to the end of the array.
     unset($module_list[array_search('contact', $module_list)]);
     $module_list[] = 'contact';
@@ -62,28 +63,28 @@ class ModuleApiTest extends WebTestBase {
       'system' => array('filename' => drupal_get_path('module', 'system')),
       'menu' => array('filename' => drupal_get_path('module', 'menu')),
     );
-    module_list(NULL, $fixed_list);
+    drupal_container()->get('extension_handler')->moduleList(NULL, $fixed_list);
     $new_module_list = array_combine(array_keys($fixed_list), array_keys($fixed_list));
     $this->assertModuleList($new_module_list, t('When using a fixed list'));
 
     // Reset the module list.
-    module_list_reset();
+    $extension_handler->moduleListReset();
     $this->assertModuleList($module_list, t('After reset'));
   }
 
   /**
-   * Assert that module_list() return the expected values.
+   * Assert that drupal_container()->get('extension_handler')->moduleList() return the expected values.
    *
    * @param $expected_values
    *   The expected values, sorted by weight and module name.
    */
   protected function assertModuleList(Array $expected_values, $condition) {
     $expected_values = array_combine($expected_values, $expected_values);
-    $this->assertEqual($expected_values, module_list(), t('@condition: module_list() returns correct results', array('@condition' => $condition)));
+    $this->assertEqual($expected_values, drupal_container()->get('extension_handler')->moduleList(), t('@condition: moduleList() returns correct results', array('@condition' => $condition)));
   }
 
   /**
-   * Test module_implements() caching.
+   * Test drupal_container()->get('extension_handler')->moduleImplements() caching.
    */
   function testModuleImplements() {
     // Clear the cache.
@@ -105,7 +106,7 @@ class ModuleApiTest extends WebTestBase {
     module_enable(array('module_test'));
 
     module_load_include('inc', 'module_test', 'module_test.file');
-    $modules = module_implements('test_hook');
+    $modules = drupal_container()->get('extension_handler')->moduleImplements('test_hook');
     $static = drupal_static('module_implements');
     $this->assertTrue(in_array('module_test', $modules), 'Hook found.');
     $this->assertEqual($static['test_hook']['module_test'], 'file', 'Include file detected.');
@@ -122,13 +123,13 @@ class ModuleApiTest extends WebTestBase {
   }
 
   /**
-   * Test that module_invoke_all() can load a hook defined in hook_hook_info().
+   * Test that drupal_container()->get('extension_handler')->moduleInvokeAll() can load a hook defined in hook_hook_info().
    */
   function testModuleInvokeAll() {
     module_enable(array('module_test'), FALSE);
     $this->resetAll();
     $this->drupalGet('module-test/hook-dynamic-loading-invoke-all');
-    $this->assertText('success!', t('module_invoke_all() dynamically loads a hook defined in hook_hook_info().'));
+    $this->assertText('success!', t('drupal_container()->get('extension_handler')->moduleInvokeAll() dynamically loads a hook defined in hook_hook_info().'));
   }
 
   /**
@@ -152,10 +153,10 @@ class ModuleApiTest extends WebTestBase {
     // are not already enabled. (If they were, the tests below would not work
     // correctly.)
     module_enable(array('module_test'), FALSE);
-    $this->assertTrue(module_exists('module_test'), t('Test module is enabled.'));
-    $this->assertFalse(module_exists('forum'), t('Forum module is disabled.'));
-    $this->assertFalse(module_exists('poll'), t('Poll module is disabled.'));
-    $this->assertFalse(module_exists('php'), t('PHP module is disabled.'));
+    $this->assertTrue(drupal_container()->get('extension_handler')->moduleExists('module_test'), t('Test module is enabled.'));
+    $this->assertFalse(drupal_container()->get('extension_handler')->moduleExists('forum'), t('Forum module is disabled.'));
+    $this->assertFalse(drupal_container()->get('extension_handler')->moduleExists('poll'), t('Poll module is disabled.'));
+    $this->assertFalse(drupal_container()->get('extension_handler')->moduleExists('php'), t('PHP module is disabled.'));
 
     // First, create a fake missing dependency. Forum depends on poll, which
     // depends on a made-up module, foo. Nothing should be installed.
@@ -163,7 +164,7 @@ class ModuleApiTest extends WebTestBase {
     drupal_static_reset('system_rebuild_module_data');
     $result = module_enable(array('forum'));
     $this->assertFalse($result, t('module_enable() returns FALSE if dependencies are missing.'));
-    $this->assertFalse(module_exists('forum'), t('module_enable() aborts if dependencies are missing.'));
+    $this->assertFalse(drupal_container()->get('extension_handler')->moduleExists('forum'), t('module_enable() aborts if dependencies are missing.'));
 
     // Now, fix the missing dependency. Forum module depends on poll, but poll
     // depends on the PHP module. module_enable() should work.
@@ -172,17 +173,17 @@ class ModuleApiTest extends WebTestBase {
     $result = module_enable(array('forum'));
     $this->assertTrue($result, t('module_enable() returns the correct value.'));
     // Verify that the fake dependency chain was installed.
-    $this->assertTrue(module_exists('poll') && module_exists('php'), t('Dependency chain was installed by module_enable().'));
+    $this->assertTrue(drupal_container()->get('extension_handler')->moduleExists('poll') && drupal_container()->get('extension_handler')->moduleExists('php'), t('Dependency chain was installed by module_enable().'));
     // Verify that the original module was installed.
-    $this->assertTrue(module_exists('forum'), t('Module installation with unlisted dependencies succeeded.'));
+    $this->assertTrue(drupal_container()->get('extension_handler')->moduleExists('forum'), t('Module installation with unlisted dependencies succeeded.'));
     // Finally, verify that the modules were enabled in the correct order.
     $this->assertEqual(variable_get('test_module_enable_order', array()), array('php', 'poll', 'forum'), t('Modules were enabled in the correct order by module_enable().'));
 
     // Now, disable the PHP module. Both forum and poll should be disabled as
     // well, in the correct order.
     module_disable(array('php'));
-    $this->assertTrue(!module_exists('forum') && !module_exists('poll'), t('Depedency chain was disabled by module_disable().'));
-    $this->assertFalse(module_exists('php'), t('Disabling a module with unlisted dependents succeeded.'));
+    $this->assertTrue(!drupal_container()->get('extension_handler')->moduleExists('forum') && !drupal_container()->get('extension_handler')->moduleExists('poll'), t('Depedency chain was disabled by module_disable().'));
+    $this->assertFalse(drupal_container()->get('extension_handler')->moduleExists('php'), t('Disabling a module with unlisted dependents succeeded.'));
     $this->assertEqual(variable_get('test_module_disable_order', array()), array('forum', 'poll', 'php'), t('Modules were disabled in the correct order by module_disable().'));
 
     // Disable a module that is listed as a dependency by the install profile.
@@ -191,9 +192,9 @@ class ModuleApiTest extends WebTestBase {
     $profile = drupal_get_profile();
     $info = install_profile_info($profile);
     $this->assertTrue(in_array('comment', $info['dependencies']), t('Comment module is listed as a dependency of the install profile.'));
-    $this->assertTrue(module_exists('comment'), t('Comment module is enabled.'));
+    $this->assertTrue(drupal_container()->get('extension_handler')->moduleExists('comment'), t('Comment module is enabled.'));
     module_disable(array('comment'));
-    $this->assertFalse(module_exists('comment'), t('Comment module was disabled.'));
+    $this->assertFalse(drupal_container()->get('extension_handler')->moduleExists('comment'), t('Comment module was disabled.'));
     $disabled_modules = variable_get('test_module_disable_order', array());
     $this->assertTrue(in_array('comment', $disabled_modules), t('Comment module is in the list of disabled modules.'));
     $this->assertFalse(in_array($profile, $disabled_modules), t('The installation profile is not in the list of disabled modules.'));
@@ -235,9 +236,9 @@ class ModuleApiTest extends WebTestBase {
     $result = module_enable(array('forum'));
     $this->assertTrue($result, t('module_enable() returns the correct value.'));
     // Verify that the fake dependency chain was installed.
-    $this->assertTrue(module_exists('poll') && module_exists('php'), t('Dependency chain was installed by module_enable().'));
+    $this->assertTrue(drupal_container()->get('extension_handler')->moduleExists('poll') && drupal_container()->get('extension_handler')->moduleExists('php'), t('Dependency chain was installed by module_enable().'));
     // Verify that the original module was installed.
-    $this->assertTrue(module_exists('forum'), t('Module installation with version dependencies succeeded.'));
+    $this->assertTrue(drupal_container()->get('extension_handler')->moduleExists('forum'), t('Module installation with version dependencies succeeded.'));
     // Finally, verify that the modules were enabled in the correct order.
     $enable_order = variable_get('test_module_enable_order', array());
     $php_position = array_search('php', $enable_order);

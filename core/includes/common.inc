@@ -354,7 +354,7 @@ function _drupal_default_html_head() {
  */
 function drupal_get_html_head() {
   $elements = drupal_add_html_head();
-  drupal_alter('html_head', $elements);
+  drupal_container()->get('extension_handler')->alter('html_head', $elements);
   return drupal_render($elements);
 }
 
@@ -690,7 +690,7 @@ function drupal_goto($path = '', array $options = array(), $http_response_code =
     $options['fragment'] = $destination['fragment'];
   }
 
-  drupal_alter('drupal_goto', $path, $options, $http_response_code);
+  drupal_container()->get('extension_handler')->alter('drupal_goto', $path, $options, $http_response_code);
 
   // The 'Location' HTTP header must be absolute.
   $options['absolute'] = TRUE;
@@ -2138,7 +2138,7 @@ function url($path = NULL, array $options = array()) {
   $original_path = $path;
 
   // Allow other modules to alter the outbound URL and options.
-  drupal_alter('url_outbound', $path, $options, $original_path);
+  drupal_container()->get('extension_handler')->alter('url_outbound', $path, $options, $original_path);
 
   if (isset($options['fragment']) && $options['fragment'] !== '') {
     $options['fragment'] = '#' . $options['fragment'];
@@ -2359,7 +2359,7 @@ function l($text, $path, array $options = array()) {
 function drupal_exit($destination = NULL) {
   if (drupal_get_bootstrap_phase() == DRUPAL_BOOTSTRAP_FULL) {
     if (!defined('MAINTENANCE_MODE') || MAINTENANCE_MODE != 'update') {
-      module_invoke_all('exit', $destination);
+      drupal_container()->get('extension_handler')->moduleInvokeAll('exit', $destination);
     }
     drupal_session_commit();
   }
@@ -2678,7 +2678,7 @@ function drupal_add_css($data = NULL, $options = NULL) {
  *   (optional) An array of CSS files. If no array is provided, the default
  *   stylesheets array is used instead.
  * @param $skip_alter
- *   (optional) If set to TRUE, this function skips calling drupal_alter() on
+ *   (optional) If set to TRUE, this function skips calling drupal_container()->get('extension_handler')->alter() on
  *   $css, useful when the calling function passes a $css array that has already
  *   been altered.
  *
@@ -2694,7 +2694,7 @@ function drupal_get_css($css = NULL, $skip_alter = FALSE) {
 
   // Allow modules and themes to alter the CSS items.
   if (!$skip_alter) {
-    drupal_alter('css', $css);
+    drupal_container()->get('extension_handler')->alter('css', $css);
   }
 
   // Sort CSS items, so that they appear in the correct order.
@@ -3861,7 +3861,7 @@ function drupal_js_defaults($data = NULL) {
  *   (optional) An array with all JavaScript code. Defaults to the default
  *   JavaScript array for the given scope.
  * @param $skip_alter
- *   (optional) If set to TRUE, this function skips calling drupal_alter() on
+ *   (optional) If set to TRUE, this function skips calling drupal_container()->get('extension_handler')->alter() on
  *   $javascript, useful when the calling function passes a $javascript array
  *   that has already been altered.
  *
@@ -3882,7 +3882,7 @@ function drupal_get_js($scope = 'header', $javascript = NULL, $skip_alter = FALS
 
   // Allow modules to alter the JavaScript.
   if (!$skip_alter) {
-    drupal_alter('js', $javascript);
+    drupal_container()->get('extension_handler')->alter('js', $javascript);
   }
 
   // Filter out elements of the given scope.
@@ -4539,7 +4539,7 @@ function drupal_get_library($module, $name = NULL) {
       $module_libraries = array();
     }
     // Allow modules to alter the module's registered libraries.
-    drupal_alter('library_info', $module_libraries, $module);
+    drupal_container()->get('extension_handler')->alter('library_info', $module_libraries, $module);
 
     foreach ($module_libraries as $key => $data) {
       if (is_array($data)) {
@@ -4870,6 +4870,7 @@ function _drupal_bootstrap_code() {
   require_once DRUPAL_ROOT . '/core/includes/unicode.inc';
   require_once DRUPAL_ROOT . '/core/includes/image.inc';
   require_once DRUPAL_ROOT . '/core/includes/form.inc';
+  require_once DRUPAL_ROOT . '/core/includes/language.inc';
   require_once DRUPAL_ROOT . '/core/includes/mail.inc';
   require_once DRUPAL_ROOT . '/core/includes/ajax.inc';
   require_once DRUPAL_ROOT . '/core/includes/token.inc';
@@ -4878,7 +4879,7 @@ function _drupal_bootstrap_code() {
   require_once DRUPAL_ROOT . '/core/includes/entity.inc';
 
   // Load all enabled modules
-  module_load_all();
+  drupal_container()->get('extension_handler')->loadAll();
 
   // Make sure all stream wrappers are registered.
   file_get_stream_wrappers();
@@ -4927,7 +4928,7 @@ function _drupal_bootstrap_full($skip = FALSE) {
     //   ahead of when rendering starts.
     menu_set_custom_theme();
     drupal_theme_initialize();
-    module_invoke_all('init');
+    drupal_container()->get('extension_handler')->moduleInvokeAll('init');
   }
 }
 
@@ -5013,8 +5014,8 @@ function drupal_cron_run() {
 
   $return = FALSE;
   // Grab the defined cron queues.
-  $queues = module_invoke_all('queue_info');
-  drupal_alter('queue_info', $queues);
+  $queues = drupal_container()->get('extension_handler')->moduleInvokeAll('queue_info');
+  drupal_container()->get('extension_handler')->alter('queue_info', $queues);
 
   // Try to acquire cron lock.
   if (!lock()->acquire('cron', 240.0)) {
@@ -5033,7 +5034,7 @@ function drupal_cron_run() {
     drupal_register_shutdown_function('drupal_cron_cleanup');
 
     // Iterate through the modules calling their cron handlers (if any):
-    foreach (module_implements('cron') as $module) {
+    foreach (drupal_container()->get('extension_handler')->moduleImplements('cron') as $module) {
       // Do not let an exception thrown by one module disturb another.
       try {
         module_invoke($module, 'cron');
@@ -5507,13 +5508,13 @@ function drupal_render_page($page) {
   }
 
   // Modules can add elements to $page as needed in hook_page_build().
-  foreach (module_implements('page_build') as $module) {
+  foreach (drupal_container()->get('extension_handler')->moduleImplements('page_build') as $module) {
     $function = $module . '_page_build';
     $function($page);
   }
   // Modules alter the $page as needed. Blocks are populated into regions like
   // 'sidebar_first', 'footer', etc.
-  drupal_alter('page', $page);
+  drupal_container()->get('extension_handler')->alter('page', $page);
 
   // If no module has taken care of the main content, add it to the page now.
   // This allows the site to still be usable even if no modules that
@@ -6098,12 +6099,12 @@ function element_info($type) {
   $cache = &$drupal_static_fast['cache'];
 
   if (!isset($cache)) {
-    $cache = module_invoke_all('element_info');
+    $cache = drupal_container()->get('extension_handler')->moduleInvokeAll('element_info');
     foreach ($cache as $element_type => $info) {
       $cache[$element_type]['#type'] = $element_type;
     }
     // Allow modules to alter the element type defaults.
-    drupal_alter('element_info', $cache);
+    drupal_container()->get('extension_handler')->alter('element_info', $cache);
   }
 
   return isset($cache[$type]) ? $cache[$type] : array();
@@ -6787,7 +6788,7 @@ function drupal_flush_all_caches() {
   // Flush all persistent caches.
   // This is executed based on old/previously known information, which is
   // sufficient, since new extensions cannot have any primed caches yet.
-  foreach (module_invoke_all('cache_flush') as $bin) {
+  foreach (drupal_container()->get('extension_handler')->moduleInvokeAll('cache_flush') as $bin) {
     cache($bin)->flush();
   }
 
@@ -6803,11 +6804,11 @@ function drupal_flush_all_caches() {
   // None currently; kept if any static caches need to be reset in the future.
 
   // Rebuild module and theme data.
-  system_list_reset();
+  drupal_container()->get('extension_handler')->systemListReset();
 
   // Ensure that all modules that are currently supposed to be enabled are
   // actually loaded.
-  module_load_all();
+  drupal_container()->get('extension_handler')->loadAll();
 
   // Rebuild the schema and cache a fully-built schema based on new module data.
   // This is necessary for any invocation of index.php, because setting cache
@@ -6818,7 +6819,7 @@ function drupal_flush_all_caches() {
   drupal_get_schema(NULL, TRUE);
 
   // Rebuild all information based on new module data.
-  module_invoke_all('rebuild');
+  drupal_container()->get('extension_handler')->moduleInvokeAll('rebuild');
 
   // Rebuild the menu router based on all rebuilt data.
   // Important: This rebuild must happen last, so the menu router is guaranteed
@@ -6965,8 +6966,8 @@ function archiver_get_info() {
     $cache = cache()->get('archiver_info');
     if ($cache === FALSE) {
       // Rebuild the cache and save it.
-      $archiver_info = module_invoke_all('archiver_info');
-      drupal_alter('archiver_info', $archiver_info);
+      $archiver_info = drupal_container()->get('extension_handler')->moduleInvokeAll('archiver_info');
+      drupal_container()->get('extension_handler')->alter('archiver_info', $archiver_info);
       uasort($archiver_info, 'drupal_sort_weight');
       cache()->set('archiver_info', $archiver_info);
     }
@@ -7050,8 +7051,8 @@ function archiver_get_archiver($file) {
 function drupal_get_updaters() {
   $updaters = &drupal_static(__FUNCTION__);
   if (!isset($updaters)) {
-    $updaters = module_invoke_all('updater_info');
-    drupal_alter('updater_info', $updaters);
+    $updaters = drupal_container()->get('extension_handler')->moduleInvokeAll('updater_info');
+    drupal_container()->get('extension_handler')->alter('updater_info', $updaters);
     uasort($updaters, 'drupal_sort_weight');
   }
   return $updaters;
@@ -7070,8 +7071,8 @@ function drupal_get_updaters() {
 function drupal_get_filetransfer_info() {
   $info = &drupal_static(__FUNCTION__);
   if (!isset($info)) {
-    $info = module_invoke_all('filetransfer_info');
-    drupal_alter('filetransfer_info', $info);
+    $info = drupal_container()->get('extension_handler')->moduleInvokeAll('filetransfer_info');
+    drupal_container()->get('extension_handler')->alter('filetransfer_info', $info);
     uasort($info, 'drupal_sort_weight');
   }
   return $info;

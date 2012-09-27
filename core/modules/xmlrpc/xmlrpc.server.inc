@@ -10,7 +10,7 @@
  */
 function xmlrpc_server_page() {
   module_load_include('inc', 'xmlrpc');
-  xmlrpc_server(module_invoke_all('xmlrpc'));
+  xmlrpc_server(drupal_container()->get('extension_handler')->moduleInvokeAll('xmlrpc'));
 }
 
 /**
@@ -53,7 +53,7 @@ function xmlrpc_server($callbacks) {
   // with those defined by modules implementing the _xmlrpc hook.
   // Built-in methods are overridable.
   $callbacks = array_merge($defaults, (array) $callbacks);
-  drupal_alter('xmlrpc', $callbacks);
+  drupal_container()->get('extension_handler')->alter('xmlrpc', $callbacks);
   foreach ($callbacks as $key => $callback) {
     // we could check for is_array($callback)
     if (is_int($key)) {

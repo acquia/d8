@@ -234,13 +234,13 @@ function node_entity_info() {
   );
 
   // Add a translation handler for fields if the language module is enabled.
-  if (module_exists('language')) {
+  if (drupal_container()->get('extension_handler')->moduleExists('language')) {
     $return['node']['translation']['node'] = TRUE;
   }
 
   // Search integration is provided by node.module, so search-related
   // view modes for nodes are defined here and not in search.module.
-  if (module_exists('search')) {
+  if (drupal_container()->get('extension_handler')->moduleExists('search')) {
     $return['node']['view modes'] += array(
       'search_index' => array(
         'label' => t('Search index'),
@@ -590,7 +590,7 @@ function node_type_save($info) {
     if (!empty($type->old_type) && $type->old_type != $type->type) {
       field_attach_rename_bundle('node', $type->old_type, $type->type);
     }
-    module_invoke_all('node_type_update', $type);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('node_type_update', $type);
     $status = SAVED_UPDATED;
   }
   else {
@@ -601,7 +601,7 @@ function node_type_save($info) {
 
     field_attach_create_bundle('node', $type->type);
 
-    module_invoke_all('node_type_insert', $type);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('node_type_insert', $type);
     $status = SAVED_NEW;
   }
 
@@ -663,7 +663,7 @@ function node_add_body_field($type, $label = 'Body') {
  */
 function node_field_extra_fields() {
   $extra = array();
-  $module_language_enabled = module_exists('language');
+  $module_language_enabled = drupal_container()->get('extension_handler')->moduleExists('language');
   $description = t('Node module element');
 
   foreach (node_type_get_types() as $bundle) {
@@ -750,7 +750,7 @@ function node_type_delete($name) {
     ->condition('type', $name)
     ->execute();
   field_attach_delete_bundle('node', $name);
-  module_invoke_all('node_type_delete', $type);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('node_type_delete', $type);
 
   // Clear the node type cache.
   node_type_cache_reset();
@@ -814,7 +814,7 @@ function _node_types_build($rebuild = FALSE) {
 
   $_node_types = (object) array('types' => array(), 'names' => array());
 
-  foreach (module_implements('node_info') as $module) {
+  foreach (drupal_container()->get('extension_handler')->moduleImplements('node_info') as $module) {
     $info_array = module_invoke($module, 'node_info');
     foreach ($info_array as $type => $info) {
       $info['type'] = $type;
@@ -1141,7 +1141,7 @@ function node_revision_delete($revision_id) {
       ->condition('nid', $revision->nid)
       ->condition('vid', $revision->vid)
       ->execute();
-    module_invoke_all('node_revision_delete', $revision);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('node_revision_delete', $revision);
     field_attach_delete_revision('node', $revision);
     return TRUE;
   }
@@ -1190,7 +1190,7 @@ function node_view(Node $node, $view_mode = 'full', $langcode = NULL) {
   }
 
   // Allow modules to modify the structured node.
-  drupal_alter(array('node_view', 'entity_view'), $build, $node);
+  drupal_container()->get('extension_handler')->alter(array('node_view', 'entity_view'), $build, $node);
 
   return $build;
 }
@@ -1233,7 +1233,7 @@ function node_build_content(Node $node, $view_mode = 'full', $langcode = NULL) {
 
   // Allow modules to change the view mode.
   $context = array('langcode' => $langcode);
-  drupal_alter('entity_view_mode', $view_mode, $node, $context);
+  drupal_container()->get('extension_handler')->alter('entity_view_mode', $view_mode, $node, $context);
 
   // The 'view' hook can be implemented to overwrite the default function
   // to display nodes.
@@ -1283,8 +1283,8 @@ function node_build_content(Node $node, $view_mode = 'full', $langcode = NULL) {
   );
 
   // Allow modules to make their own additions to the node.
-  module_invoke_all('node_view', $node, $view_mode, $langcode);
-  module_invoke_all('entity_view', $node, $view_mode, $langcode);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('node_view', $node, $view_mode, $langcode);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('entity_view', $node, $view_mode, $langcode);
 }
 
 /**
@@ -1484,7 +1484,7 @@ function node_permission() {
  *   A query object that has been extended with the Search DB Extender.
  */
 function _node_rankings(SelectExtender $query) {
-  if ($ranking = module_invoke_all('ranking')) {
+  if ($ranking = drupal_container()->get('extension_handler')->moduleInvokeAll('ranking')) {
     $tables = &$query->getTables();
     foreach ($ranking as $rank => $values) {
       if ($node_rank = variable_get('node_rank_' . $rank, 0)) {
@@ -1551,7 +1551,7 @@ function node_search_admin() {
 
   // Note: reversed to reflect that higher number = higher ranking.
   $options = drupal_map_assoc(range(0, 10));
-  foreach (module_invoke_all('ranking') as $var => $values) {
+  foreach (drupal_container()->get('extension_handler')->moduleInvokeAll('ranking') as $var => $values) {
     $form['content_ranking']['factors']['node_rank_' . $var] = array(
       '#title' => $values['title'],
       '#type' => 'select',
@@ -1608,7 +1608,7 @@ function node_search_execute($keys = NULL, $conditions = NULL) {
     // Fetch comments for snippet.
     $node->rendered .= ' ' . module_invoke('comment', 'node_update_index', $node, $item->langcode);
 
-    $extra = module_invoke_all('node_search_result', $node, $item->langcode);
+    $extra = drupal_container()->get('extension_handler')->moduleInvokeAll('node_search_result', $node, $item->langcode);
 
     $language = language_load($item->langcode);
     $uri = $node->uri();
@@ -2664,7 +2664,7 @@ function _node_index_node(Node $node) {
     $text = '<h1>' . check_plain($node->label($language->langcode)) . '</h1>' . $node->rendered;
 
     // Fetch extra data normally not visible.
-    $extra = module_invoke_all('node_update_index', $node, $language->langcode);
+    $extra = drupal_container()->get('extension_handler')->moduleInvokeAll('node_update_index', $node, $language->langcode);
     foreach ($extra as $t) {
       $text .= $t;
     }
@@ -2965,7 +2965,7 @@ function node_access($op, $node, $account = NULL, $langcode = NULL) {
   // - At least one module says to grant access.
   // If no module specified either allow or deny, we fall back to the
   // node_access table.
-  $access = module_invoke_all('node_access', $node, $op, $account, $langcode);
+  $access = drupal_container()->get('extension_handler')->moduleInvokeAll('node_access', $node, $op, $account, $langcode);
   if (in_array(NODE_ACCESS_DENY, $access, TRUE)) {
     $rights[$account->uid][$cid][$langcode][$op] = FALSE;
     return FALSE;
@@ -2984,7 +2984,7 @@ function node_access($op, $node, $account = NULL, $langcode = NULL) {
   // If the module did not override the access rights, use those set in the
   // node_access table.
   if ($op != 'create' && $node->nid) {
-    if (module_implements('node_grants')) {
+    if (drupal_container()->get('extension_handler')->moduleImplements('node_grants')) {
       $query = db_select('node_access');
       $query->addExpression('1');
       $query->condition('grant_' . $op, 1, '>=');
@@ -3135,9 +3135,9 @@ function node_access_grants($op, $account = NULL) {
   }
 
   // Fetch node access grants from other modules.
-  $grants = module_invoke_all('node_grants', $account, $op);
+  $grants = drupal_container()->get('extension_handler')->moduleInvokeAll('node_grants', $account, $op);
   // Allow modules to alter the assigned grants.
-  drupal_alter('node_grants', $grants, $account, $op);
+  drupal_container()->get('extension_handler')->alter('node_grants', $grants, $account, $op);
 
   return array_merge(array('all' => array(0)), $grants);
 }
@@ -3177,7 +3177,7 @@ function node_access_view_all_nodes($account = NULL) {
   }
 
   // If no modules implement the node access system, access is always TRUE.
-  if (!module_implements('node_grants')) {
+  if (!drupal_container()->get('extension_handler')->moduleImplements('node_grants')) {
     $access[$account->uid] = TRUE;
   }
   else {
@@ -3259,7 +3259,7 @@ function _node_query_node_access_alter($query, $type) {
   if (user_access('bypass node access', $account)) {
     return;
   }
-  if (!count(module_implements('node_grants'))) {
+  if (!count(drupal_container()->get('extension_handler')->moduleImplements('node_grants'))) {
     return;
   }
   if ($op == 'view' && node_access_view_all_nodes($account)) {
@@ -3388,9 +3388,9 @@ function _node_query_node_access_alter($query, $type) {
  *   new ones. Defaults to TRUE.
  */
 function node_access_acquire_grants(Node $node, $delete = TRUE) {
-  $grants = module_invoke_all('node_access_records', $node);
+  $grants = drupal_container()->get('extension_handler')->moduleInvokeAll('node_access_records', $node);
   // Let modules alter the grants.
-  drupal_alter('node_access_records', $grants, $node);
+  drupal_container()->get('extension_handler')->alter('node_access_records', $grants, $node);
   // If no grants are set and the node is published, then use the default grant.
   if (empty($grants) && !empty($node->status)) {
     $grants[] = array('realm' => 'all', 'gid' => 0, 'grant_view' => 1, 'grant_update' => 0, 'grant_delete' => 0);
@@ -3435,7 +3435,7 @@ function _node_access_write_grants(Node $node, $grants, $realm = NULL, $delete =
   }
 
   // Only perform work when node_access modules are active.
-  if (!empty($grants) && count(module_implements('node_grants'))) {
+  if (!empty($grants) && count(drupal_container()->get('extension_handler')->moduleImplements('node_grants'))) {
     $query = db_insert('node_access')->fields(array('nid', 'realm', 'gid', 'grant_view', 'grant_update', 'grant_delete'));
     foreach ($grants as $grant) {
       if ($realm && $realm != $grant['realm']) {
@@ -3504,7 +3504,7 @@ function node_access_needs_rebuild($rebuild = NULL) {
 function node_access_rebuild($batch_mode = FALSE) {
   db_delete('node_access')->execute();
   // Only recalculate if the site is using a node_access module.
-  if (count(module_implements('node_grants'))) {
+  if (count(drupal_container()->get('extension_handler')->moduleImplements('node_grants'))) {
     if ($batch_mode) {
       $batch = array(
         'title' => t('Rebuilding content access permissions'),
@@ -3967,7 +3967,7 @@ function node_requirements($phase) {
     // in the {node_access} table, or if there are modules that
     // implement hook_node_grants().
     $grant_count = db_query('SELECT COUNT(*) FROM {node_access}')->fetchField();
-    if ($grant_count != 1 || count(module_implements('node_grants')) > 0) {
+    if ($grant_count != 1 || count(drupal_container()->get('extension_handler')->moduleImplements('node_grants')) > 0) {
       $value = format_plural($grant_count, 'One permission in use', '@count permissions in use', array('@count' => $grant_count));
     }
     else {
@@ -3990,7 +3990,7 @@ function node_requirements($phase) {
 function node_modules_enabled($modules) {
   // Check if any of the newly enabled modules require the node_access table to
   // be rebuilt.
-  if (!node_access_needs_rebuild() && array_intersect($modules, module_implements('node_grants'))) {
+  if (!node_access_needs_rebuild() && array_intersect($modules, drupal_container()->get('extension_handler')->moduleImplements('node_grants'))) {
     node_access_needs_rebuild(TRUE);
   }
 }
@@ -4012,7 +4012,7 @@ function node_modules_disabled($modules) {
 
   // If there remains no more node_access module, rebuilding will be
   // straightforward, we can do it right now.
-  if (node_access_needs_rebuild() && count(module_implements('node_grants')) == 0) {
+  if (node_access_needs_rebuild() && count(drupal_container()->get('extension_handler')->moduleImplements('node_grants')) == 0) {
     node_access_rebuild();
   }
 }

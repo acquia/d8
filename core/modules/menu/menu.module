@@ -41,7 +41,7 @@ function menu_help($path, $arg) {
     case 'admin/structure/menu/add':
       return '<p>' . t('You can enable the newly-created block for this menu on the <a href="@blocks">Blocks administration page</a>.', array('@blocks' => url('admin/structure/block'))) . '</p>';
   }
-  if ($path == 'admin/structure/menu' && module_exists('block')) {
+  if ($path == 'admin/structure/menu' && drupal_container()->get('extension_handler')->moduleExists('block')) {
     return '<p>' . t('Each menu has a corresponding block that is managed on the <a href="@blocks">Blocks administration page</a>.', array('@blocks' => url('admin/structure/block'))) . '</p>';
   }
 }
@@ -281,11 +281,11 @@ function menu_save($menu) {
         variable_set('menu_default_active_menus', $active_menus);
       }
 
-      module_invoke_all('menu_insert', $menu);
+      drupal_container()->get('extension_handler')->moduleInvokeAll('menu_insert', $menu);
       break;
 
     case SAVED_UPDATED:
-      module_invoke_all('menu_update', $menu);
+      drupal_container()->get('extension_handler')->moduleInvokeAll('menu_update', $menu);
       break;
   }
 }
@@ -333,7 +333,7 @@ function menu_delete($menu) {
     ->execute();
 
   menu_cache_clear_all();
-  module_invoke_all('menu_delete', $menu);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('menu_delete', $menu);
 }
 
 /**

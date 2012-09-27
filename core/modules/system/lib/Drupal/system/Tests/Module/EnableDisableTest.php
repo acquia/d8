@@ -39,7 +39,7 @@ class EnableDisableTest extends ModuleTestBase {
 
     // Remove already enabled modules (via installation profile).
     // @todo Remove this after removing all dependencies from Testing profile.
-    foreach (module_list() as $dependency) {
+    foreach (drupal_container()->get('extension_handler')->moduleList() as $dependency) {
       // Exclude required modules. Only installation profile "suggestions" can
       // be disabled and uninstalled.
       if (isset($modules[$dependency])) {

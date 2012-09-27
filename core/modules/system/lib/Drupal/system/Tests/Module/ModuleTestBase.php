@@ -139,7 +139,7 @@ abstract class ModuleTestBase extends WebTestBase {
    *   Expected module state.
    */
   function assertModules(array $modules, $enabled) {
-    system_list_reset();
+    drupal_container()->get('extension_handler')->systemListReset();
     foreach ($modules as $module) {
       if ($enabled) {
         $message = 'Module "@module" is enabled.';
@@ -147,7 +147,7 @@ abstract class ModuleTestBase extends WebTestBase {
       else {
         $message = 'Module "@module" is not enabled.';
       }
-      $this->assertEqual(module_exists($module), $enabled, t($message, array('@module' => $module)));
+      $this->assertEqual(drupal_container()->get('extension_handler')->moduleExists($module), $enabled, t($message, array('@module' => $module)));
     }
   }
 

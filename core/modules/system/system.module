@@ -113,7 +113,7 @@ function system_help($path, $arg) {
       return '<p>' . t('These options control the default display settings for your entire site, across all themes. Unless they have been overridden by a specific theme, these settings will be used.') . '</p>';
     case 'admin/modules':
       $output = '<p>' . t('Download additional <a href="@modules">contributed modules</a> to extend Drupal\'s functionality.', array('@modules' => 'http://drupal.org/project/modules')) . '</p>';
-      if (module_exists('update')) {
+      if (drupal_container()->get('extension_handler')->moduleExists('update')) {
         if (update_manager_access()) {
           $output .= '<p>' . t('Regularly review and install <a href="@updates">available updates</a> to maintain a secure and current site. Always run the <a href="@update-php">update script</a> each time a module is updated.', array('@update-php' => $base_url . '/core/update.php', '@updates' => url('admin/reports/updates'))) . '</p>';
         }
@@ -1047,7 +1047,7 @@ function system_menu() {
   );
 
   // Localize date formats.
-  if (module_exists('language')) {
+  if (drupal_container()->get('extension_handler')->moduleExists('language')) {
     $items['admin/config/regional/date-time/locale'] = array(
       'title' => 'Localize',
       'description' => 'Configure date formats for each locale',
@@ -2703,11 +2703,14 @@ function _system_rebuild_module_data($state_name = FALSE, $save = FALSE) {
  * @return
  *   Array of all available modules and their data.
  */
-function system_rebuild_module_data($reset = TRUE) {
+function system_rebuild_module_data($reset = TRUE, $extension_handler = NULL, $config_factory = NULL) {
+  $extension_handler = $extension_handler ?: drupal_container()->get('extension_handler');
+  $config_factory = $config_factory ?: drupal_container()->get('config.factory');
+  $system_module_config = $config_factory->get('system.module')->load()->get();
   $modules_cache = &drupal_static(__FUNCTION__, array());
   // Only rebuild once per request. $modules and $modules_cache cannot be
   // combined into one variable, because the $modules_cache variable is reset by
-  // reference from system_list_reset() during the rebuild.
+  // reference from drupal_container()->get('extension_handler')->systemListReset() during the rebuild.
   if (!isset($modules_cache['data'])) {
     $modules = _system_rebuild_module_data();
     ksort($modules);
@@ -2720,14 +2723,14 @@ function system_rebuild_module_data($reset = TRUE) {
       $record->schema_version = SCHEMA_UNINSTALLED;
     }
     // Enabled status and weights.
-    foreach (config('system.module')->get() as $module => $weight) {
+    foreach ($system_module_config as $module => $weight) {
       $modules[$module]->status = 1;
       $modules[$module]->weight = $weight;
     }
-    // As noted above, system_list_reset() deletes $modules_cache so the order
+    // As noted above, drupal_container()->get('extension_handler')->systemListReset() deletes $modules_cache so the order
     // here is important.
     if ($reset) {
-      system_list_reset();
+      $extension_handler->systemListReset();
     }
     $modules_cache['data'] = $modules;
   }
@@ -2735,7 +2738,7 @@ function system_rebuild_module_data($reset = TRUE) {
   if (!isset($modules_cache['info_alter']) && drupal_get_bootstrap_phase() >= DRUPAL_BOOTSTRAP_CODE) {
     // Invoke hook_system_info_alter() to give installed modules a chance to
     // modify the data in the .info files if necessary. It is not possible to
-    // use drupal_alter() which relies on system_list() which relies on this
+    // use drupal_container()->get('extension_handler')->alter() which relies on system_list() which relies on this
     // function.
     $type = 'module';
     // It is not impossible a function resets the modules cache. Keep it.
@@ -2744,7 +2747,7 @@ function system_rebuild_module_data($reset = TRUE) {
        // Copy parsed info.
       $record->info = $record->parsed_info;
     }
-    foreach (config('system.module')->get() as $module => $weight) {
+    foreach ($system_module_config as $module => $weight) {
       $function = $module .'_system_info_alter';
       if (function_exists($function)) {
         foreach ($modules as $record) {
@@ -2752,7 +2755,7 @@ function system_rebuild_module_data($reset = TRUE) {
         }
       }
     }
-    $modules = _module_build_dependencies($modules);
+    $modules = $extension_handler->buildModuleDependencies($modules);
     $modules_cache['data'] = $modules;
     $profile = drupal_get_profile();
     if (isset($modules_cache['data'][$profile])) {
@@ -2775,11 +2778,12 @@ function system_rebuild_module_data($reset = TRUE) {
  * @return
  *   An associative array of themes information.
  */
-function _system_rebuild_theme_data() {
+function _system_rebuild_theme_data($extension_handler = NULL) {
+  $extension_handler = $extension_handler ?: drupal_container()->get('extension_handler');
   // Find themes
   $themes = drupal_system_listing('/^' . DRUPAL_PHP_FUNCTION_PATTERN . '\.info$/', 'themes');
   // Allow modules to add further themes.
-  if ($module_themes = module_invoke_all('system_theme_info')) {
+  if ($module_themes = $extension_handler->moduleInvokeAll('system_theme_info')) {
     foreach ($module_themes as $name => $uri) {
       // @see file_scan_directory()
       $themes[$name] = (object) array(
@@ -2828,7 +2832,7 @@ function _system_rebuild_theme_data() {
     // Invoke hook_system_info_alter() to give installed modules a chance to
     // modify the data in the .info files if necessary.
     $type = 'theme';
-    drupal_alter('system_info', $themes[$key]->info, $themes[$key], $type);
+    $extension_handler->alter('system_info', $themes[$key]->info, $themes[$key], $type);
 
     if (!empty($themes[$key]->info['base theme'])) {
       $sub_themes[] = $key;
@@ -2895,15 +2899,17 @@ function _system_rebuild_theme_data() {
  * @return
  *   Array of all available themes and their data.
  */
-function system_rebuild_theme_data($reset = TRUE) {
-  $themes = _system_rebuild_theme_data();
+function system_rebuild_theme_data($reset = TRUE, $extension_handler = NULL, $config_factory = NULL) {
+  $extension_handler = $extension_handler ?: drupal_container()->get('extension_handler');
+  $config_factory = $config_factory ?: drupal_container()->get('config.factory');
+  $themes = _system_rebuild_theme_data($extension_handler);
   ksort($themes);
-  $themes_status = config('system.theme')->get();
+  $themes_status = $config_factory->get('system.theme')->load()->get();
   foreach ($themes as $theme => $data) {
     $data->status = isset($themes_status[$theme]);
   }
   if ($reset) {
-    system_list_reset();
+    $extension_handler->systemListReset();
   }
   return $themes;
 }
@@ -3345,7 +3351,7 @@ function system_cron() {
     ->condition('expiration', REQUEST_TIME, '<')
     ->execute();
 
-  $cache_bins = array_merge(module_invoke_all('cache_flush'), array('form', 'menu'));
+  $cache_bins = array_merge(drupal_container()->get('extension_handler')->moduleInvokeAll('cache_flush'), array('form', 'menu'));
   foreach ($cache_bins as $bin) {
     cache($bin)->expire();
   }
@@ -3738,7 +3744,7 @@ function _system_date_format_types_build() {
   $types = array();
 
   // Get list of modules that implement hook_date_format_types().
-  $modules = module_implements('date_format_types');
+  $modules = drupal_container()->get('extension_handler')->moduleImplements('date_format_types');
 
   foreach ($modules as $module) {
     $module_types = module_invoke($module, 'date_format_types');
@@ -3774,7 +3780,7 @@ function _system_date_format_types_build() {
   }
 
   // Allow other modules to modify these date types.
-  drupal_alter('date_format_types', $types);
+  drupal_container()->get('extension_handler')->alter('date_format_types', $types);
 
   return $types;
 }
@@ -3809,7 +3815,7 @@ function _system_date_formats_build() {
   }
 
   // Get formats supplied by various contrib modules.
-  $module_formats = module_invoke_all('date_formats');
+  $module_formats = drupal_container()->get('extension_handler')->moduleInvokeAll('date_formats');
 
   foreach ($module_formats as $module_format) {
     // System types are locked.
@@ -3861,7 +3867,7 @@ function _system_date_formats_build() {
   }
 
   // Allow other modules to modify these formats.
-  drupal_alter('date_formats', $date_formats);
+  drupal_container()->get('extension_handler')->alter('date_formats', $date_formats);
 
   return $date_formats;
 }
@@ -4078,6 +4084,6 @@ function country_get_list() {
   include_once DRUPAL_ROOT . '/core/includes/standard.inc';
   $countries = standard_country_list();
   // Allow other modules to modify the country list.
-  drupal_alter('countries', $countries);
+  drupal_container()->get('extension_handler')->alter('countries', $countries);
   return $countries;
 }

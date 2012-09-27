@@ -32,7 +32,7 @@ class ClearTest extends CacheTestBase {
    */
   function testFlushAllCaches() {
     // Create cache entries for each flushed cache bin.
-    $bins = module_invoke_all('cache_flush');
+    $bins = drupal_container()->get('extension_handler')->moduleInvokeAll('cache_flush');
     $this->assertTrue($bins, 'hook_cache_flush() returned bins to flush.');
     $bins = array_merge($bins, array('menu'));
     foreach ($bins as $id => $bin) {

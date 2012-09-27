@@ -284,7 +284,7 @@ class NodeStorageController extends DatabaseStorageController {
    * Overrides Drupal\Core\Entity\DatabaseStorageController::preDelete().
    */
   function preDelete($entities) {
-    if (module_exists('search')) {
+    if (drupal_container()->get('extension_handler')->moduleExists('search')) {
       foreach ($entities as $id => $entity) {
         search_reindex($entity->nid, 'node');
       }

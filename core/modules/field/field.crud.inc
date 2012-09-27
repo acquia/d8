@@ -194,7 +194,7 @@ function field_create_field($field) {
   field_cache_clear(TRUE);
 
   // Invoke external hooks after the cache is cleared for API consistency.
-  module_invoke_all('field_create_field', $field);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('field_create_field', $field);
 
   return $field;
 }
@@ -260,7 +260,7 @@ function field_update_field($field) {
   $has_data = field_has_data($field);
 
   // See if any module forbids the update by throwing an exception.
-  foreach (module_implements('field_update_forbid') as $module) {
+  foreach (drupal_container()->get('extension_handler')->moduleImplements('field_update_forbid') as $module) {
     $function = $module . '_field_update_forbid';
     $function($field, $prior_field, $has_data);
   }
@@ -292,7 +292,7 @@ function field_update_field($field) {
   field_cache_clear(TRUE);
 
   // Invoke external hooks after the cache is cleared for API consistency.
-  module_invoke_all('field_update_field', $field, $prior_field, $has_data);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('field_update_field', $field, $prior_field, $has_data);
 }
 
 /**
@@ -369,7 +369,7 @@ function field_read_fields($params = array(), $include_additional = array()) {
     $field['translatable'] = $record['translatable'];
     $field['deleted'] = $record['deleted'];
 
-    module_invoke_all('field_read_field', $field);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('field_read_field', $field);
 
     // Populate storage information.
     module_load_install($field['module']);
@@ -416,7 +416,7 @@ function field_delete_field($field_name) {
   // Clear the cache.
   field_cache_clear(TRUE);
 
-  module_invoke_all('field_delete_field', $field);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('field_delete_field', $field);
 }
 
 /**
@@ -499,7 +499,7 @@ function field_create_instance(&$instance) {
   field_cache_clear();
 
   // Invoke external hooks after the cache is cleared for API consistency.
-  module_invoke_all('field_create_instance', $instance);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('field_create_instance', $instance);
 
   return $instance;
 }
@@ -543,7 +543,7 @@ function field_update_instance($instance) {
   // Clear caches.
   field_cache_clear();
 
-  module_invoke_all('field_update_instance', $instance, $prior_instance);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('field_update_instance', $instance, $prior_instance);
 }
 
 /**
@@ -727,7 +727,7 @@ function field_read_instances($params = array(), $include_additional = array()) 
       $instance['bundle'] = $record['bundle'];
       $instance['deleted'] = $record['deleted'];
 
-      module_invoke_all('field_read_instance', $instance);
+      drupal_container()->get('extension_handler')->moduleInvokeAll('field_read_instance', $instance);
       $instances[] = $instance;
     }
   }
@@ -761,7 +761,7 @@ function field_delete_instance($instance, $field_cleanup = TRUE) {
   module_invoke($field['storage']['module'], 'field_storage_delete_instance', $instance);
 
   // Let modules react to the deletion of the instance.
-  module_invoke_all('field_delete_instance', $instance);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('field_delete_instance', $instance);
 
   // Delete the field itself if we just deleted its last instance.
   if ($field_cleanup && count($field['bundles']) == 0) {
@@ -928,7 +928,7 @@ function field_purge_data($entity_type, $entity, $field, $instance) {
   module_invoke($field['storage']['module'], 'field_storage_purge', $entity_type, $entity, $field, $instance);
 
   // Let other modules act on purging the data.
-  foreach (module_implements('field_attach_purge') as $module) {
+  foreach (drupal_container()->get('extension_handler')->moduleImplements('field_attach_purge') as $module) {
     $function = $module . '_field_attach_purge';
     $function($entity_type, $entity, $field, $instance);
   }
@@ -956,7 +956,7 @@ function field_purge_instance($instance) {
   field_info_cache_clear();
 
   // Invoke external hooks after the cache is cleared for API consistency.
-  module_invoke_all('field_purge_instance', $instance);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('field_purge_instance', $instance);
 }
 
 /**
@@ -985,7 +985,7 @@ function field_purge_field($field) {
   field_info_cache_clear();
 
   // Invoke external hooks after the cache is cleared for API consistency.
-  module_invoke_all('field_purge_field', $field);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('field_purge_field', $field);
 }
 
 /**

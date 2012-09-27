@@ -12,7 +12,7 @@ use Drupal\simpletest\WebTestBase;
 /**
  * Tests for URL generation functions.
  *
- * url() calls module_implements(), which may issue a db query, which requires
+ * url() calls drupal_container()->get('extension_handler')->moduleImplements(), which may issue a db query, which requires
  * inheriting from a web test case rather than a unit test case.
  */
 class UrlTest extends WebTestBase {

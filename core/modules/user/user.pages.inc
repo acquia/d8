@@ -175,7 +175,7 @@ function user_logout() {
 
   watchdog('user', 'Session closed for %name.', array('%name' => $user->name));
 
-  module_invoke_all('user_logout', $user);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('user_logout', $user);
 
   // Destroy the current session, and reset $user to the anonymous user.
   session_destroy();
@@ -361,7 +361,7 @@ function user_cancel_methods() {
     ),
   );
   // Allow modules to customize account cancellation methods.
-  drupal_alter('user_cancel_methods', $methods);
+  drupal_container()->get('extension_handler')->alter('user_cancel_methods', $methods);
 
   // Turn all methods into real form elements.
   $default_method = variable_get('user_cancel_method', 'user_cancel_block');

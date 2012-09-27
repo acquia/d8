@@ -50,7 +50,7 @@ function hook_hook_info() {
  * Alter information from hook_hook_info().
  *
  * @param $hooks
- *   Information gathered by module_hook_info() from other modules'
+ *   Information gathered by drupal_container()->get('extension_handler')->moduleHookInfo() from other modules'
  *   implementations of hook_hook_info(). Alter this array directly.
  *   See hook_hook_info() for information on what this may contain.
  */
@@ -1534,12 +1534,12 @@ function hook_mail_alter(&$message) {
 /**
  * Alter the registry of modules implementing a hook.
  *
- * This hook is invoked during module_implements(). A module may implement this
+ * This hook is invoked during drupal_container()->get('extension_handler')->moduleImplements(). A module may implement this
  * hook in order to reorder the implementing modules, which are otherwise
  * ordered by the module's system weight.
  *
- * Note that hooks invoked using drupal_alter() can have multiple variations
- * (such as hook_form_alter() and hook_form_FORM_ID_alter()). drupal_alter()
+ * Note that hooks invoked using drupal_container()->get('extension_handler')->alter() can have multiple variations
+ * (such as hook_form_alter() and hook_form_FORM_ID_alter()). drupal_container()->get('extension_handler')->alter()
  * will call all such variants defined by a single module in turn. For the
  * purposes of hook_module_implements_alter(), these variants are treated as
  * a single hook. Thus, to ensure that your implementation of
@@ -1556,7 +1556,7 @@ function hook_mail_alter(&$message) {
  */
 function hook_module_implements_alter(&$implementations, $hook) {
   if ($hook == 'rdf_mapping') {
-    // Move my_module_rdf_mapping() to the end of the list. module_implements()
+    // Move my_module_rdf_mapping() to the end of the list. drupal_container()->get('extension_handler')->moduleImplements()
     // iterates through $implementations with a foreach loop which PHP iterates
     // in the order that the items were added, so to move an item to the end of
     // the array, we remove it and then add it.

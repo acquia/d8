@@ -264,7 +264,7 @@ function search_get_info($all = FALSE) {
   $search_hooks = &drupal_static(__FUNCTION__);
 
   if (!isset($search_hooks)) {
-    foreach (module_implements('search_info') as $module) {
+    foreach (drupal_container()->get('extension_handler')->moduleImplements('search_info') as $module) {
       $search_hooks[$module] = call_user_func($module . '_search_info');
       // Use module name as the default value.
       $search_hooks[$module] += array('title' => $module, 'path' => $module);
@@ -323,7 +323,7 @@ function _search_menu_access($name) {
  */
 function search_reindex($sid = NULL, $module = NULL, $reindex = FALSE, $langcode = NULL) {
   if ($module == NULL && $sid == NULL) {
-    module_invoke_all('search_reset');
+    drupal_container()->get('extension_handler')->moduleInvokeAll('search_reset');
   }
   else {
     $query = db_delete('search_dataset')
@@ -555,7 +555,7 @@ function _search_index_truncate(&$text) {
  * Invokes hook_search_preprocess() in modules.
  */
 function search_invoke_preprocess(&$text, $langcode = NULL) {
-  foreach (module_implements('search_preprocess') as $module) {
+  foreach (drupal_container()->get('extension_handler')->moduleImplements('search_preprocess') as $module) {
     $text = module_invoke($module, 'search_preprocess', $text, $langcode);
   }
 }

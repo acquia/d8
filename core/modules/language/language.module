@@ -232,18 +232,18 @@ function language_save($language) {
   $language->is_new = !(bool) db_query_range('SELECT 1 FROM {language} WHERE langcode = :langcode', 0, 1, array(':langcode' => $language->langcode))->fetchField();
 
   // Let other modules modify $language before saved.
-  module_invoke_all('language_presave', $language);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('language_presave', $language);
 
   // Save the record and inform others about the change.
   $t_args = array('%language' => $language->name, '%langcode' => $language->langcode);
   if ($language->is_new) {
     drupal_write_record('language', $language);
-    module_invoke_all('language_insert', $language);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('language_insert', $language);
     watchdog('language', 'The %language (%langcode) language has been created.', $t_args);
   }
   else {
     drupal_write_record('language', $language, array('langcode'));
-    module_invoke_all('language_update', $language);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('language_update', $language);
     watchdog('language', 'The %language (%langcode) language has been updated.', $t_args);
   }
 
@@ -290,7 +290,7 @@ function language_delete($langcode) {
   if (isset($languages[$langcode]) && !$languages[$langcode]->locked) {
     $language = $languages[$langcode];
 
-    module_invoke_all('language_delete', $language);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('language_delete', $language);
 
     // Remove the language.
     db_delete('language')

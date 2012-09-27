@@ -113,7 +113,7 @@ function _theme_custom_theme() {
 }
 
 /**
- * Page callback, calls drupal_alter().
+ * Page callback, calls drupal_container()->get('extension_handler')->alter().
  *
  * This is for testing that the theme can have hook_*_alter() implementations
  * that run during page callback execution, even before theme() is called for
@@ -121,7 +121,7 @@ function _theme_custom_theme() {
  */
 function _theme_test_alter() {
   $data = 'foo';
-  drupal_alter('theme_test_alter', $data);
+  drupal_container()->get('extension_handler')->alter('theme_test_alter', $data);
   return "The altered data is $data.";
 }
 

@@ -185,7 +185,7 @@ function hook_entity_info() {
 
   // Search integration is provided by node.module, so search-related
   // view modes for nodes are defined here and not in search.module.
-  if (module_exists('search')) {
+  if (drupal_container()->get('extension_handler')->moduleExists('search')) {
     $return['node']['view modes'] += array(
       'search_index' => array(
         'label' => t('Search index'),

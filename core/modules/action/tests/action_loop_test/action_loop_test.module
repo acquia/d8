@@ -74,7 +74,7 @@ function watchdog_skip_semaphore($type, $message, $variables = array(), $severit
   );
 
   // Call the logging hooks to log/process the message
-  foreach (module_implements('watchdog') as $module) {
+  foreach (drupal_container()->get('extension_handler')->moduleImplements('watchdog') as $module) {
     module_invoke($module, 'watchdog', $log_entry);
   }
 }

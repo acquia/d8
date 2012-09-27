@@ -244,11 +244,11 @@ function actions_do($action_ids, $object = NULL, $context = NULL, $a1 = NULL, $a
 function action_list($reset = FALSE) {
   $actions = &drupal_static(__FUNCTION__);
   if (!isset($actions) || $reset) {
-    $actions = module_invoke_all('action_info');
-    drupal_alter('action_info', $actions);
+    $actions = drupal_container()->get('extension_handler')->moduleInvokeAll('action_info');
+    drupal_container()->get('extension_handler')->alter('action_info', $actions);
   }
 
-  // See module_implements() for an explanation of this cast.
+  // See drupal_container()->get('extension_handler')->moduleImplements() for an explanation of this cast.
   return (array) $actions;
 }
 
@@ -466,7 +466,7 @@ function action_delete($aid) {
   db_delete('actions')
     ->condition('aid', $aid)
     ->execute();
-  module_invoke_all('action_delete', $aid);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('action_delete', $aid);
 }
 
 /**

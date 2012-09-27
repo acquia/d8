@@ -809,7 +809,7 @@ function update_manager_archive_extract($file, $directory) {
  *   are no errors, it will be an empty array.
  */
 function update_manager_archive_verify($project, $archive_file, $directory) {
-  return module_invoke_all('verify_update_archive', $project, $archive_file, $directory);
+  return drupal_container()->get('extension_handler')->moduleInvokeAll('verify_update_archive', $project, $archive_file, $directory);
 }
 
 /**

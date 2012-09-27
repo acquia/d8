@@ -108,7 +108,7 @@ function drupal_theme_initialize() {
   }
   _drupal_theme_initialize($themes[$theme], array_reverse($base_theme));
 
-  // Themes can have alter functions, so reset the drupal_alter() cache.
+  // Themes can have alter functions, so reset the drupal_container()->get('extension_handler')->alter() cache.
   drupal_static_reset('drupal_alter');
 }
 
@@ -325,7 +325,7 @@ function _theme_load_registry($theme, $base_theme = NULL, $theme_engine = NULL, 
       $registry = _theme_build_registry($theme, $base_theme, $theme_engine);
       // Only persist this registry if all modules are loaded. This assures a
       // complete set of theme hooks.
-      if (module_load_all(NULL)) {
+      if (drupal_container()->get('extension_handler')->loadAll(NULL)) {
         _theme_save_registry($theme, $registry);
       }
     }
@@ -482,7 +482,7 @@ function _theme_process_registry(&$cache, $name, $type, $theme, $path) {
             // Add all modules so they can intervene with their own variable
             // processors. This allows them to provide variable processors even
             // if they are not the owner of the current hook.
-            $prefixes += module_list();
+            $prefixes += drupal_container()->get('extension_handler')->moduleList();
           }
           elseif ($type == 'theme_engine' || $type == 'base_theme_engine') {
             // Theme engines get an extra set that come before the normally
@@ -573,11 +573,11 @@ function _theme_build_registry($theme, $base_theme, $theme_engine) {
     $cache = $cached->data;
   }
   else {
-    foreach (module_implements('theme') as $module) {
+    foreach (drupal_container()->get('extension_handler')->moduleImplements('theme') as $module) {
       _theme_process_registry($cache, $module, 'module', $module, drupal_get_path('module', $module));
     }
     // Only cache this registry if all modules are loaded.
-    if (module_load_all(NULL)) {
+    if (drupal_container()->get('extension_handler')->loadAll(NULL)) {
       cache()->set('theme_registry:build:modules', $cache);
     }
   }
@@ -601,7 +601,7 @@ function _theme_build_registry($theme, $base_theme, $theme_engine) {
   _theme_process_registry($cache, $theme->name, 'theme', $theme->name, dirname($theme->filename));
 
   // Let modules alter the registry.
-  drupal_alter('theme_registry', $cache);
+  drupal_container()->get('extension_handler')->alter('theme_registry', $cache);
 
   // Optimize the registry to not have empty arrays for functions.
   foreach ($cache as $hook => $info) {
@@ -660,11 +660,12 @@ function _theme_build_registry($theme, $base_theme, $theme_engine) {
  *     declare this theme as their base theme.
 */
 function list_themes($refresh = FALSE) {
+  $extension_handler = drupal_container()->get('extension_handler');
   $list = &drupal_static(__FUNCTION__, array());
 
   if ($refresh) {
     $list = array();
-    system_list_reset();
+    $extension_handler->systemListReset();
   }
 
   if (empty($list)) {
@@ -674,7 +675,7 @@ function list_themes($refresh = FALSE) {
     // Also check that the site is not in the middle of an install or update.
     if (!defined('MAINTENANCE_MODE')) {
       try {
-        $themes = system_list('theme');
+        $themes = $extension_handler->systemList('theme');
       }
       catch (Exception $e) {
         // If the database is not available, rebuild the theme data.
@@ -889,7 +890,7 @@ function theme($hook, $variables = array()) {
   // If called before all modules are loaded, we do not necessarily have a full
   // theme registry to work with, and therefore cannot process the theme
   // request properly. See also _theme_load_registry().
-  if (!module_load_all(NULL) && !defined('MAINTENANCE_MODE')) {
+  if (!drupal_container()->get('extension_handler')->loadAll(NULL) && !defined('MAINTENANCE_MODE')) {
     throw new Exception(t('theme() may not be called until all modules are loaded.'));
   }
 
@@ -1424,7 +1425,7 @@ function theme_enable($theme_list) {
   drupal_theme_rebuild();
 
   // Invoke hook_themes_enabled() after the themes have been enabled.
-  module_invoke_all('themes_enabled', $theme_list);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('themes_enabled', $theme_list);
 }
 
 /**
@@ -1455,7 +1456,7 @@ function theme_disable($theme_list) {
   drupal_theme_rebuild();
 
   // Invoke hook_themes_disabled after the themes have been disabled.
-  module_invoke_all('themes_disabled', $theme_list);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('themes_disabled', $theme_list);
 }
 
 /**

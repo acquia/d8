@@ -15,7 +15,7 @@ use Drupal\Core\Database\ConnectionNotDefinedException;
  *
  * These tests can not access the database nor files. Calling any Drupal
  * function that needs the database will throw exceptions. These include
- * watchdog(), module_implements(), module_invoke_all() etc.
+ * watchdog(), drupal_container()->get('extension_handler')->moduleImplements(), drupal_container()->get('extension_handler')->moduleInvokeAll() etc.
  */
 abstract class UnitTestBase extends TestBase {
 
@@ -53,7 +53,7 @@ abstract class UnitTestBase extends TestBase {
     drupal_static_reset();
 
     // Enforce an empty module list.
-    module_list(NULL, array());
+    drupal_container()->get('extension_handler')->moduleList(NULL, array());
 
     $conf['file_public_path'] = $this->public_files_directory;
 

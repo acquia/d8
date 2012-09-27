@@ -28,9 +28,9 @@ class RequestCloseSubscriber implements EventSubscriberInterface {
    *   The Event to process.
    */
   public function onTerminate(PostResponseEvent $event) {
-    module_invoke_all('exit');
+    drupal_container()->get('extension_handler')->moduleInvokeAll('exit');
     drupal_cache_system_paths();
-    module_implements_write_cache();
+    drupal_container()->get('extension_handler')->moduleImplementsWriteCache();
     system_run_automated_cron();
   }
 

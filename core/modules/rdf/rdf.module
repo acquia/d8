@@ -99,8 +99,8 @@ function rdf_rdf_namespaces() {
  * implement it.
  */
 function rdf_get_namespaces() {
-  $rdf_namespaces = module_invoke_all('rdf_namespaces');
-  // module_invoke_all() uses array_merge_recursive() which might return nested
+  $rdf_namespaces = drupal_container()->get('extension_handler')->moduleInvokeAll('rdf_namespaces');
+  // drupal_container()->get('extension_handler')->moduleInvokeAll() uses array_merge_recursive() which might return nested
   // arrays if several modules redefine the same prefix multiple times. We need
   // to ensure the array of namespaces is flat and only contains strings as
   // URIs.
@@ -166,7 +166,7 @@ function _rdf_get_default_mapping($type) {
 
   if (!isset($default_mappings)) {
     // Get all of the modules that implement hook_rdf_mapping().
-    $modules = module_implements('rdf_mapping');
+    $modules = drupal_container()->get('extension_handler')->moduleImplements('rdf_mapping');
 
     // Only consider the default entity mapping definitions.
     foreach ($modules as $module) {

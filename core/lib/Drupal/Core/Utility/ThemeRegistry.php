@@ -34,7 +34,7 @@ class ThemeRegistry extends CacheArray {
   function __construct($cid, $bin) {
     $this->cid = $cid;
     $this->bin = $bin;
-    $this->persistable = module_load_all(NULL) && $_SERVER['REQUEST_METHOD'] == 'GET';
+    $this->persistable = drupal_container()->get('extension_handler')->loadAll(NULL) && $_SERVER['REQUEST_METHOD'] == 'GET';
 
     $data = array();
     if ($this->persistable && $cached = cache($this->bin)->get($this->cid)) {

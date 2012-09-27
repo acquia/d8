@@ -175,7 +175,7 @@ function token_scan($text) {
  */
 function token_generate($type, array $tokens, array $data = array(), array $options = array()) {
   $options += array('sanitize' => TRUE);
-  $replacements = module_invoke_all('tokens', $type, $tokens, $data, $options);
+  $replacements = drupal_container()->get('extension_handler')->moduleInvokeAll('tokens', $type, $tokens, $data, $options);
 
   // Allow other modules to alter the replacements.
   $context = array(
@@ -184,7 +184,7 @@ function token_generate($type, array $tokens, array $data = array(), array $opti
     'data' => $data,
     'options' => $options,
   );
-  drupal_alter('tokens', $replacements, $context);
+  drupal_container()->get('extension_handler')->alter('tokens', $replacements, $context);
 
   return $replacements;
 }
@@ -255,8 +255,8 @@ function token_find_with_prefix(array $tokens, $prefix, $delimiter = ':') {
 function token_info() {
   $data = &drupal_static(__FUNCTION__);
   if (!isset($data)) {
-    $data = module_invoke_all('token_info');
-    drupal_alter('token_info', $data);
+    $data = drupal_container()->get('extension_handler')->moduleInvokeAll('token_info');
+    drupal_container()->get('extension_handler')->alter('token_info', $data);
   }
   return $data;
 }

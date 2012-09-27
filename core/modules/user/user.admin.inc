@@ -175,7 +175,7 @@ function user_admin_account() {
     '#attributes' => array('class' => array('container-inline')),
   );
   $options = array();
-  foreach (module_invoke_all('user_operations') as $operation => $array) {
+  foreach (drupal_container()->get('extension_handler')->moduleInvokeAll('user_operations') as $operation => $array) {
     $options[$operation] = $array['label'];
   }
   $form['options']['operation'] = array(
@@ -229,7 +229,7 @@ function user_admin_account() {
  * Submit the user administration update form.
  */
 function user_admin_account_submit($form, &$form_state) {
-  $operations = module_invoke_all('user_operations', $form, $form_state);
+  $operations = drupal_container()->get('extension_handler')->moduleInvokeAll('user_operations', $form, $form_state);
   $operation = $operations[$form_state['values']['operation']];
   // Filter out unchecked accounts.
   $accounts = array_filter($form_state['values']['accounts']);
@@ -388,7 +388,7 @@ function user_admin_settings($form, &$form_state) {
     '#maxlength' => 255,
     '#description' => t('URL of picture to display for users with no custom picture selected. Leave blank for none.'),
   );
-  if (module_exists('image')) {
+  if (drupal_container()->get('extension_handler')->moduleExists('image')) {
     $form['personalization']['pictures']['settings']['user_picture_style'] = array(
       '#type' => 'select',
       '#title' => t('Picture display style'),
@@ -710,7 +710,7 @@ function user_admin_permissions($form, $form_state, $rid = NULL) {
   // Get a list of all the modules implementing a hook_permission() and sort by
   // display name.
   $modules = array();
-  foreach (module_implements('permission') as $module) {
+  foreach (drupal_container()->get('extension_handler')->moduleImplements('permission') as $module) {
     $modules[$module] = $module_info[$module]['name'];
   }
   asort($modules);

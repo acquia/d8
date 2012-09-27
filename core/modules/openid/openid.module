@@ -466,8 +466,8 @@ function openid_complete($response = array()) {
 function openid_discovery($claimed_id) {
   module_load_include('inc', 'openid');
 
-  $methods = module_invoke_all('openid_discovery_method_info');
-  drupal_alter('openid_discovery_method_info', $methods);
+  $methods = drupal_container()->get('extension_handler')->moduleInvokeAll('openid_discovery_method_info');
+  drupal_container()->get('extension_handler')->alter('openid_discovery_method_info', $methods);
 
   // Execute each method in turn and return first successful discovery.
   foreach ($methods as $method) {
@@ -721,7 +721,7 @@ function openid_authentication($response) {
       drupal_set_message(t('You must validate your email address for this account before logging in via OpenID.'));
     }
     // Let other modules act on OpenID login
-    module_invoke_all('openid_response', $response, $account);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('openid_response', $response, $account);
   }
   elseif (config('user.settings')->get('register') != USER_REGISTER_ADMINISTRATORS_ONLY) {
     // Register new user.
@@ -735,10 +735,10 @@ function openid_authentication($response) {
     entity_form_submit($account, 'register', $form_state);
 
     if (empty($form_state['user'])) {
-      module_invoke_all('openid_response', $response, NULL);
+      drupal_container()->get('extension_handler')->moduleInvokeAll('openid_response', $response, NULL);
     }
     else {
-      module_invoke_all('openid_response', $response, $form_state['user']);
+      drupal_container()->get('extension_handler')->moduleInvokeAll('openid_response', $response, $form_state['user']);
       drupal_goto();
     }
 
@@ -765,7 +765,7 @@ function openid_authentication($response) {
   }
   else {
     drupal_set_message(t('Only site administrators can create new user accounts.'), 'error');
-    module_invoke_all('openid_response', $response, NULL);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('openid_response', $response, NULL);
   }
   drupal_goto();
 }
@@ -842,7 +842,7 @@ function openid_authentication_request($claimed_id, $identity, $return_to = '', 
     $request['openid.ax.type.language_son'] = 'http://openid.net/schema/language/pref';
   }
 
-  drupal_alter('openid_request', $request, $service);
+  drupal_container()->get('extension_handler')->alter('openid_request', $request, $service);
 
   return $request;
 }

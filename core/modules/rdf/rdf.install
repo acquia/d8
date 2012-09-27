@@ -44,6 +44,6 @@ function rdf_schema() {
 function rdf_install() {
   // Collect any RDF mappings that were declared by modules installed before
   // this one.
-  $modules = module_implements('rdf_mapping');
+  $modules = drupal_container()->get('extension_handler')->moduleImplements('rdf_mapping');
   rdf_modules_installed($modules);
 }

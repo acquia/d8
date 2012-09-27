@@ -390,7 +390,7 @@ class Select extends Query implements SelectInterface {
       foreach ($this->alterTags as $tag => $value) {
         $hooks[] = 'query_' . $tag;
       }
-      drupal_alter($hooks, $query);
+      drupal_container()->get('extension_handler')->alter($hooks, $query);
     }
 
     $this->prepared = TRUE;

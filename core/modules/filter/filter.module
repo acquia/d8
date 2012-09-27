@@ -274,10 +274,10 @@ function filter_format_save($format) {
   }
 
   if ($return == SAVED_NEW) {
-    module_invoke_all('filter_format_insert', $format);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('filter_format_insert', $format);
   }
   else {
-    module_invoke_all('filter_format_update', $format);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('filter_format_update', $format);
     // Explicitly indicate that the format was updated. We need to do this
     // since if the filters were updated but the format object itself was not,
     // the merge query above would not return an indication that anything had
@@ -311,7 +311,7 @@ function filter_format_disable($format) {
     ->execute();
 
   // Allow modules to react on text format deletion.
-  module_invoke_all('filter_format_disable', $format);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('filter_format_disable', $format);
 
   // Clear the filter cache whenever a text format is disabled.
   filter_formats_reset();
@@ -599,7 +599,7 @@ function filter_get_filters() {
   $filters = &drupal_static(__FUNCTION__, array());
 
   if (empty($filters)) {
-    foreach (module_implements('filter_info') as $module) {
+    foreach (drupal_container()->get('extension_handler')->moduleImplements('filter_info') as $module) {
       $info = module_invoke($module, 'filter_info');
       if (isset($info) && is_array($info)) {
         // Assign the name of the module implementing the filters and ensure
@@ -615,7 +615,7 @@ function filter_get_filters() {
       }
     }
     // Allow modules to alter filter definitions.
-    drupal_alter('filter_info', $filters);
+    drupal_container()->get('extension_handler')->alter('filter_info', $filters);
 
     uasort($filters, '_filter_list_cmp');
   }

@@ -150,9 +150,9 @@ function language_types_info() {
   $language_types = &drupal_static(__FUNCTION__);
 
   if (!isset($language_types)) {
-    $language_types = module_invoke_all('language_types_info');
+    $language_types = drupal_container()->get('extension_handler')->moduleInvokeAll('language_types_info');
     // Let other modules alter the list of language types.
-    drupal_alter('language_types_info', $language_types);
+    drupal_container()->get('extension_handler')->alter('language_types_info', $language_types);
   }
 
   return $language_types;
@@ -318,7 +318,7 @@ function language_negotiation_get_switch_links($type, $path) {
 
       if (!empty($result)) {
         // Allow modules to provide translations for specific links.
-        drupal_alter('language_switch_links', $result, $type, $path);
+        drupal_container()->get('extension_handler')->alter('language_switch_links', $result, $type, $path);
         $links = (object) array('links' => $result, 'method_id' => $method_id);
         break;
       }
@@ -403,7 +403,7 @@ function language_negotiation_info() {
 
   if (!isset($negotiation_info)) {
     // Collect all the module-defined language negotiation methods.
-    $negotiation_info = module_invoke_all('language_negotiation_info');
+    $negotiation_info = drupal_container()->get('extension_handler')->moduleInvokeAll('language_negotiation_info');
 
     // Add the default language negotiation method.
     $negotiation_info[LANGUAGE_NEGOTIATION_DEFAULT] = array(
@@ -415,7 +415,7 @@ function language_negotiation_info() {
     );
 
      // Let other modules alter the list of language negotiation methods.
-     drupal_alter('language_negotiation_info', $negotiation_info);
+     drupal_container()->get('extension_handler')->alter('language_negotiation_info', $negotiation_info);
   }
 
   return $negotiation_info;
@@ -529,7 +529,7 @@ function language_fallback_get_candidates($type = LANGUAGE_TYPE_CONTENT) {
     $fallback_candidates[] = LANGUAGE_NOT_SPECIFIED;
 
     // Let other modules hook in and add/change candidates.
-    drupal_alter('language_fallback_candidates', $fallback_candidates);
+    drupal_container()->get('extension_handler')->alter('language_fallback_candidates', $fallback_candidates);
   }
 
   return $fallback_candidates;

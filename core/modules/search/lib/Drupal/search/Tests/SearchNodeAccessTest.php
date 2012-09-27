@@ -45,7 +45,7 @@ class SearchNodeAccessTest extends SearchTestBase {
     $node = $this->drupalCreateNode(array('body' => array(LANGUAGE_NOT_SPECIFIED => array(array('value' => "The bunny's ears were fluffy.")))));
 
     // Update the search index.
-    module_invoke_all('update_index');
+    drupal_container()->get('extension_handler')->moduleInvokeAll('update_index');
     search_update_totals();
 
     // Refresh variables after the treatment.

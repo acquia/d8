@@ -252,7 +252,7 @@ function config_test_form($form, &$form_state, ConfigTest $config_test = NULL) {
     '#default_value' => $config_test->get('style'),
     '#access' => FALSE,
   );
-  if (module_exists('image')) {
+  if (drupal_container()->get('extension_handler')->moduleExists('image')) {
     $form['style']['#access'] = TRUE;
     $form['style']['#options'] = image_style_options();
   }

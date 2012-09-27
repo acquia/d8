@@ -463,7 +463,7 @@ function menu_get_item($path = NULL, $router_item = NULL) {
     if ($router_item) {
       // Allow modules to alter the router item before it is translated and
       // checked for access.
-      drupal_alter('menu_get_item', $router_item, $path, $original_map);
+      drupal_container()->get('extension_handler')->alter('menu_get_item', $router_item, $path, $original_map);
 
       $map = _menu_translate($router_item, $original_map);
       $router_item['original_map'] = $original_map;
@@ -905,7 +905,7 @@ function _menu_link_translate(&$item, $translate = FALSE) {
   // options array. For performance reasons we only invoke this hook if the link
   // has the 'alter' flag set in the options array.
   if (!empty($item['options']['alter'])) {
-    drupal_alter('translated_menu_link', $item, $map);
+    drupal_container()->get('extension_handler')->alter('translated_menu_link', $item, $map);
   }
 
   return $map;
@@ -1689,7 +1689,7 @@ function menu_get_active_help() {
 
   $arg = drupal_help_arg(arg(NULL));
 
-  foreach (module_implements('help') as $module) {
+  foreach (drupal_container()->get('extension_handler')->moduleImplements('help') as $module) {
     $function = $module . '_help';
     // Lookup help for this path.
     if ($help = $function($router_path, $arg)) {
@@ -1719,7 +1719,7 @@ function menu_get_custom_theme($initialize = FALSE) {
     // First allow modules to dynamically set a custom theme for the current
     // page. Since we can only have one, the last module to return a valid
     // theme takes precedence.
-    $custom_themes = array_filter(module_invoke_all('custom_theme'), 'drupal_theme_access');
+    $custom_themes = array_filter(drupal_container()->get('extension_handler')->moduleInvokeAll('custom_theme'), 'drupal_theme_access');
     if (!empty($custom_themes)) {
       $custom_theme = array_pop($custom_themes);
     }
@@ -1761,7 +1761,7 @@ function menu_list_system_menus() {
  */
 function menu_main_menu() {
   $config = config('menu.settings');
-  $menu_enabled = module_exists('menu');
+  $menu_enabled = drupal_container()->get('extension_handler')->moduleExists('menu');
   // When menu module is not enabled, we need a hardcoded default value.
   $main_links_source = $menu_enabled ? $config->get('main_links') : 'main-menu';
   return menu_navigation_links($main_links_source);
@@ -1772,7 +1772,7 @@ function menu_main_menu() {
  */
 function menu_secondary_menu() {
   $config = config('menu.settings');
-  $menu_enabled = module_exists('menu');
+  $menu_enabled = drupal_container()->get('extension_handler')->moduleExists('menu');
   // When menu module is not enabled, we need a hardcoded default value.
   $main_links_source = $menu_enabled ? $config->get('main_links') : 'main-menu';
   $secondary_links_source = $menu_enabled ? $config->get('secondary_links') : 'user-menu';
@@ -2061,7 +2061,7 @@ function menu_local_tasks($level = 0) {
     $data['tabs'] = $tabs;
 
     // Allow modules to alter local tasks or dynamically append further tasks.
-    drupal_alter('menu_local_tasks', $data, $router_item, $root_path);
+    drupal_container()->get('extension_handler')->alter('menu_local_tasks', $data, $router_item, $root_path);
   }
 
   if (isset($data['tabs'][$level])) {
@@ -2168,7 +2168,7 @@ function menu_contextual_links($module, $parent_path, $args) {
   }
 
   // Allow modules to alter contextual links.
-  drupal_alter('menu_contextual_links', $links, $router_item, $root_path);
+  drupal_container()->get('extension_handler')->alter('menu_contextual_links', $links, $router_item, $root_path);
 
   // Performance: If the current user does not have access to any links for this
   // router path and no other module added further links, we assign FALSE here
@@ -2527,7 +2527,7 @@ function menu_get_active_breadcrumb() {
 
     // Allow modules to alter the breadcrumb, if possible, as that is much
     // faster than rebuilding an entirely new active trail.
-    drupal_alter('menu_breadcrumb', $active_trail, $item);
+    drupal_container()->get('extension_handler')->alter('menu_breadcrumb', $active_trail, $item);
 
     // Don't show a link to the current page in the breadcrumb trail.
     $end = end($active_trail);
@@ -2684,7 +2684,7 @@ function menu_router_build() {
   // We need to manually call each module so that we can know which module
   // a given item came from.
   $callbacks = array();
-  foreach (module_implements('menu') as $module) {
+  foreach (drupal_container()->get('extension_handler')->moduleImplements('menu') as $module) {
     $router_items = call_user_func($module . '_menu');
     if (isset($router_items) && is_array($router_items)) {
       foreach (array_keys($router_items) as $path) {
@@ -2694,7 +2694,7 @@ function menu_router_build() {
     }
   }
   // Alter the menu as defined in modules, keys are like user/%user.
-  drupal_alter('menu', $callbacks);
+  drupal_container()->get('extension_handler')->alter('menu', $callbacks);
   list($menu, $masks) = _menu_router_build($callbacks);
   _menu_router_cache($menu);
 
@@ -2965,7 +2965,7 @@ function _menu_delete_item($item, $force = FALSE) {
     }
 
     // Notify modules we are deleting the item.
-    module_invoke_all('menu_link_delete', $item);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('menu_link_delete', $item);
 
     db_delete('menu_links')->condition('mlid', $item['mlid'])->execute();
 
@@ -3008,7 +3008,7 @@ function _menu_delete_item($item, $force = FALSE) {
  *   saved.
  */
 function menu_link_save(&$item, $existing_item = array(), $parent_candidates = array()) {
-  drupal_alter('menu_link', $item);
+  drupal_container()->get('extension_handler')->alter('menu_link', $item);
 
   // This is the easiest way to handle the unique internal path '<front>',
   // since a path marked as external does not need to match a router path.
@@ -3153,7 +3153,7 @@ function menu_link_save(&$item, $existing_item = array(), $parent_candidates = a
     if ($existing_item) {
       $hook = 'menu_link_update';
     }
-    module_invoke_all($hook, $item);
+    drupal_container()->get('extension_handler')->moduleInvokeAll($hook, $item);
     // Now clear the cache.
     _menu_clear_page_cache();
   }

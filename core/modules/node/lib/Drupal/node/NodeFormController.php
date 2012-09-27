@@ -47,7 +47,7 @@ class NodeFormController extends EntityFormController {
     $node->revision = in_array('revision', $node_options);
 
     node_invoke($node, 'prepare');
-    module_invoke_all('node_prepare', $node);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('node_prepare', $node);
   }
 
   /**
@@ -293,12 +293,12 @@ class NodeFormController extends EntityFormController {
 
     // Invoke hook_validate() for node type specific validation and
     // hook_node_validate() for miscellaneous validation needed by modules.
-    // Can't use node_invoke() or module_invoke_all(), because $form_state must
+    // Can't use node_invoke() or drupal_container()->get('extension_handler')->moduleInvokeAll(), because $form_state must
     // be receivable by reference.
     if ($function = node_hook($node->type, 'validate')) {
       $function($node, $form, $form_state);
     }
-    foreach (module_implements('node_validate') as $module) {
+    foreach (drupal_container()->get('extension_handler')->moduleImplements('node_validate') as $module) {
       $function = $module . '_node_validate';
       $function($node, $form, $form_state);
     }
@@ -322,7 +322,7 @@ class NodeFormController extends EntityFormController {
     $node = parent::submit($form, $form_state);
 
     node_submit($node);
-    foreach (module_implements('node_submit') as $module) {
+    foreach (drupal_container()->get('extension_handler')->moduleImplements('node_submit') as $module) {
       $function = $module . '_node_submit';
       $function($node, $form, $form_state);
     }

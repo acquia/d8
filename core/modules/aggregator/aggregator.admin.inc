@@ -451,7 +451,7 @@ function aggregator_admin_form($form, $form_state) {
   }
 
   // Get all available parsers.
-  $parsers = module_implements('aggregator_parse');
+  $parsers = drupal_container()->get('extension_handler')->moduleImplements('aggregator_parse');
   foreach ($parsers as $k => $module) {
     if ($info = module_invoke($module, 'aggregator_parse_info')) {
       $label = $info['title'] . ' <span class="description">' . $info['description'] . '</span>';
@@ -464,7 +464,7 @@ function aggregator_admin_form($form, $form_state) {
   }
 
   // Get all available processors.
-  $processors = module_implements('aggregator_process');
+  $processors = drupal_container()->get('extension_handler')->moduleImplements('aggregator_process');
   foreach ($processors as $k => $module) {
     if ($info = module_invoke($module, 'aggregator_process_info')) {
       $label = $info['title'] . ' <span class="description">' . $info['description'] . '</span>';

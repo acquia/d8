@@ -379,7 +379,7 @@ function block_admin_configure($form, &$form_state, $module, $delta) {
     );
     $description = t("Specify pages by using their paths. Enter one path per line. The '*' character is a wildcard. Example paths are %user for the current user's page and %user-wildcard for every user page. %front is the front page.", array('%user' => 'user', '%user-wildcard' => 'user/*', '%front' => '<front>'));
 
-    if (module_exists('php') && $access) {
+    if (drupal_container()->get('extension_handler')->moduleExists('php') && $access) {
       $options += array(BLOCK_VISIBILITY_PHP => t('Pages on which this PHP code returns <code>TRUE</code> (experts only)'));
       $title = t('Pages or PHP code');
       $description .= ' ' . t('If the PHP option is chosen, enter PHP code between %php. Note that executing incorrect PHP code can break your Drupal site.', array('%php' => '<?php ?>'));
@@ -402,7 +402,7 @@ function block_admin_configure($form, &$form_state, $module, $delta) {
   }
 
   // Configure the block visibility per language.
-  if (module_exists('language') && language_multilingual()) {
+  if (drupal_container()->get('extension_handler')->moduleExists('language') && language_multilingual()) {
     $configurable_language_types = language_types_get_configurable();
     $existing_language_settings = db_query("SELECT type, langcode FROM {block_language} WHERE module = :module AND delta = :delta", array(
       ':module' => $form['module']['#value'],
@@ -577,7 +577,7 @@ function block_admin_configure_submit($form, &$form_state) {
 
       // Update the block visibility settings if we have settings to store
       // for the existing languages.
-      if (module_exists('language') && isset($form_state['values']['langcodes'])) {
+      if (drupal_container()->get('extension_handler')->moduleExists('language') && isset($form_state['values']['langcodes'])) {
         db_delete('block_language')
           ->condition('module', $form_state['values']['module'])
           ->condition('delta', $form_state['values']['delta'])
@@ -697,7 +697,7 @@ function block_add_block_form_submit($form, &$form_state) {
 
   // Update the block visibility settings if we have settings to store
   // for the existing languages.
-  if (module_exists('language') && isset($form_state['values']['langcodes'])) {
+  if (drupal_container()->get('extension_handler')->moduleExists('language') && isset($form_state['values']['langcodes'])) {
     $query = db_insert('block_language')->fields(array(
       'type', 'langcode', 'module', 'delta'
     ));

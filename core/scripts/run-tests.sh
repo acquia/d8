@@ -29,7 +29,7 @@ else {
 
 // Bootstrap to perform initial validation or other operations.
 drupal_bootstrap(DRUPAL_BOOTSTRAP_FULL);
-if (!module_exists('simpletest')) {
+if (!drupal_container()->get('extension_handler')->moduleExists('simpletest')) {
   simpletest_script_print_error("The simpletest module must be enabled before this script can run.");
   exit;
 }

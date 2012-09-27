@@ -36,7 +36,7 @@ class LegacyRequestSubscriber implements EventSubscriberInterface {
       //   hook_page_alter()), ahead of when rendering starts.
       menu_set_custom_theme();
       drupal_theme_initialize();
-      module_invoke_all('init');
+      drupal_container()->get('extension_handler')->moduleInvokeAll('init');
 
       // Tell Drupal it is now fully bootstrapped (for the benefit of code that
       // calls drupal_get_bootstrap_phase()), but without having

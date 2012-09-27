@@ -188,7 +188,7 @@ function update_results_page() {
 
   update_task_list();
   // Report end result.
-  if (module_exists('dblog') && user_access('access site reports')) {
+  if (drupal_container()->get('extension_handler')->moduleExists('dblog') && user_access('access site reports')) {
     $log_message = ' All errors have been <a href="' . base_path() . '?q=admin/reports/dblog">logged</a>.';
   }
   else {
@@ -201,7 +201,7 @@ function update_results_page() {
   else {
     list($module, $version) = array_pop(reset($_SESSION['updates_remaining']));
     $output = '<p class="error">The update process was aborted prematurely while running <strong>update #' . $version . ' in ' . $module . '.module</strong>.' . $log_message;
-    if (module_exists('dblog')) {
+    if (drupal_container()->get('extension_handler')->moduleExists('dblog')) {
       $output .= ' You may need to check the <code>watchdog</code> database table manually.';
     }
     $output .= '</p>';
@@ -361,7 +361,7 @@ function update_extra_requirements($requirements = NULL) {
  */
 function update_check_requirements($skip_warnings = FALSE) {
   // Check requirements of all loaded modules.
-  $requirements = module_invoke_all('requirements', 'update');
+  $requirements = drupal_container()->get('extension_handler')->moduleInvokeAll('requirements', 'update');
   $requirements += update_extra_requirements();
   $severity = drupal_requirements_severity($requirements);
 
@@ -417,10 +417,10 @@ if (is_null($op) && update_access_allowed()) {
   // Load module basics.
   include_once DRUPAL_ROOT . '/core/includes/module.inc';
   $module_list['system']['filename'] = 'core/modules/system/system.module';
-  module_list(NULL, $module_list);
+  drupal_container()->get('extension_handler')->moduleList(NULL, $module_list);
   drupal_load('module', 'system');
 
-  // Reset the module_implements() cache so that any new hook implementations
+  // Reset the drupal_container()->get('extension_handler')->moduleImplements() cache so that any new hook implementations
   // in updated code are picked up.
   module_implements_reset();
 

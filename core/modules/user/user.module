@@ -97,7 +97,7 @@ function user_help($path, $arg) {
  *   function.
  */
 function user_module_invoke($type, &$edit, $account) {
-  foreach (module_implements('user_' . $type) as $module) {
+  foreach (drupal_container()->get('extension_handler')->moduleImplements('user_' . $type) as $module) {
     $function = $module . '_user_' . $type;
     $function($edit, $account);
   }
@@ -926,7 +926,7 @@ function user_preprocess_block(&$variables) {
  */
 function user_format_name($account) {
   $name = !empty($account->name) ? $account->name : config('user.settings')->get('anonymous');
-  drupal_alter('user_format_name', $name, $account);
+  drupal_container()->get('extension_handler')->alter('user_format_name', $name, $account);
   return $name;
 }
 
@@ -965,7 +965,7 @@ function template_preprocess_user_picture(&$variables) {
       $alt = t("@user's picture", array('@user' => user_format_name($account)));
       // If the image does not have a valid Drupal scheme (for eg. HTTP),
       // don't load image styles.
-      if (module_exists('image') && file_valid_uri($filepath) && $style = variable_get('user_picture_style', '')) {
+      if (drupal_container()->get('extension_handler')->moduleExists('image') && file_valid_uri($filepath) && $style = variable_get('user_picture_style', '')) {
         $variables['user_picture'] = theme('image_style', array('style_name' => $style, 'uri' => $filepath, 'alt' => $alt, 'title' => $alt));
       }
       else {
@@ -1926,7 +1926,7 @@ function user_cancel($edit, $uid, $method) {
   // should use those hooks to respond to the account deletion.
   if ($method != 'user_cancel_delete') {
     // Allow modules to add further sets to this batch.
-    module_invoke_all('user_cancel', $edit, $account, $method);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('user_cancel', $edit, $account, $method);
   }
 
   // Finish the batch and actually cancel the account.
@@ -2070,7 +2070,7 @@ function user_view($account, $view_mode = 'full', $langcode = NULL) {
   );
 
   // Allow modules to modify the structured user.
-  drupal_alter(array('user_view', 'entity_view'), $build, $account);
+  drupal_container()->get('extension_handler')->alter(array('user_view', 'entity_view'), $build, $account);
 
   return $build;
 }
@@ -2096,7 +2096,7 @@ function user_build_content($account, $view_mode = 'full', $langcode = NULL) {
 
   // Allow modules to change the view mode.
   $context = array('langcode' => $langcode);
-  drupal_alter('entity_view_mode', $view_mode, $account, $context);
+  drupal_container()->get('extension_handler')->alter('entity_view_mode', $view_mode, $account, $context);
 
   // Build fields content.
   field_attach_prepare_view('user', array($account->uid => $account), $view_mode, $langcode);
@@ -2104,8 +2104,8 @@ function user_build_content($account, $view_mode = 'full', $langcode = NULL) {
   $account->content += field_attach_view('user', $account, $view_mode, $langcode);
 
   // Populate $account->content with a render() array.
-  module_invoke_all('user_view', $account, $view_mode, $langcode);
-  module_invoke_all('entity_view', $account, $view_mode, $langcode);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('user_view', $account, $view_mode, $langcode);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('entity_view', $account, $view_mode, $langcode);
 }
 
 /**
@@ -2255,7 +2255,7 @@ function user_role_save($role) {
   }
 
   // Let modules modify the user role before it is saved to the database.
-  module_invoke_all('user_role_presave', $role);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('user_role_presave', $role);
 
   $exists = db_select('role', 'r')
     ->fields('r', array('rid'))
@@ -2265,11 +2265,11 @@ function user_role_save($role) {
 
   if (empty($exists)) {
     $status = drupal_write_record('role', $role);
-    module_invoke_all('user_role_insert', $role);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('user_role_insert', $role);
   }
   else {
     $status = drupal_write_record('role', $role, 'rid');
-    module_invoke_all('user_role_update', $role);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('user_role_update', $role);
   }
 
   // Clear the user access cache.
@@ -2299,7 +2299,7 @@ function user_role_delete($role) {
     ->condition('rid', $role->rid)
     ->execute();
 
-  module_invoke_all('user_role_delete', $role);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('user_role_delete', $role);
 
   // Clear the user access cache.
   drupal_static_reset('user_access');
@@ -2326,7 +2326,7 @@ function user_role_delete_access($role) {
  */
 function user_permission_get_modules() {
   $permissions = array();
-  foreach (module_implements('permission') as $module) {
+  foreach (drupal_container()->get('extension_handler')->moduleImplements('permission') as $module) {
     $perms = module_invoke($module, 'permission');
     foreach ($perms as $key => $value) {
       $permissions[$key] = $module;
@@ -2684,7 +2684,7 @@ function user_filters() {
   }
 
   $options = array();
-  foreach (module_implements('permission') as $module) {
+  foreach (drupal_container()->get('extension_handler')->moduleImplements('permission') as $module) {
     $function = $module . '_permission';
     if ($permissions = $function('permission')) {
       asort($permissions);

@@ -7,11 +7,19 @@
 
 namespace Drupal\Core;
 
+use Drupal\Core\Config\CachedStorage;
+use Drupal\Core\Cache\CacheFactory;
+use Drupal\Core\Config\ConfigFactory;
+use Drupal\Core\Config\FileStorage;
 use Drupal\Core\CoreBundle;
+use Drupal\Core\Database\Database;
+use Drupal\Core\EventSubscriber\ConfigGlobalOverrideSubscriber;
+use Drupal\Core\ExtensionHandler;
 use Symfony\Component\HttpKernel\Kernel;
 use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBag;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 
 /**
  * The DrupalKernel class is the core of Drupal itself.
@@ -25,6 +33,18 @@ use Symfony\Component\DependencyInjection\ParameterBag\ParameterBag;
  */
 class DrupalKernel extends Kernel {
 
+  protected $cache_config;
+
+  protected $config_storage;
+
+  protected $extension_handler;
+
+  protected $config_global_override_sub;
+
+  protected $config_factory;
+
+  protected $dispatcher;
+
   /**
    * Overrides Kernel::init().
    */
@@ -35,6 +55,11 @@ class DrupalKernel extends Kernel {
     //   handling to the one of Kernel without losing functionality.
   }
 
+  public function boot() {
+    parent::boot();
+    drupal_bootstrap(DRUPAL_BOOTSTRAP_CODE);
+  }
+
   /**
    * Returns an array of available bundles.
    */
@@ -43,9 +68,20 @@ class DrupalKernel extends Kernel {
       new CoreBundle(),
     );
 
-    // @todo Remove the necessity of calling system_list() to find out which
-    // bundles exist. See http://drupal.org/node/1331486
-    $modules = array_keys(system_list('module_enabled'));
+    $cache = CacheFactory::get('cache');
+    $bootstrap_cache = CacheFactory::get('bootstrap');
+    
+    $this->config_cached_storage = new FileStorage(config_get_config_directory(CONFIG_ACTIVE_DIRECTORY));
+    $this->cache_config = CacheFactory::get('config');
+    $this->config_storage = new CachedStorage($this->config_cached_storage, $this->cache_config);
+    $this->config_global_override_sub = new ConfigGlobalOverrideSubscriber();
+    $this->dispatcher = new EventDispatcher();
+    $this->dispatcher->addSubscriber($this->config_global_override_sub);
+    $this->config_factory = new ConfigFactory($this->config_storage, $this->dispatcher);
+
+    $this->extension_handler = new ExtensionHandler($this->config_factory, $cache, $bootstrap_cache);
+
+    $modules = array_keys($this->extension_handler->systemList('module_enabled'));
     foreach ($modules as $module) {
       $camelized = ContainerBuilder::camelize($module);
       $class = "Drupal\\{$module}\\{$camelized}Bundle";
@@ -55,7 +91,6 @@ class DrupalKernel extends Kernel {
     }
     return $bundles;
   }
-
 
   /**
    * Initializes the service container.
@@ -76,11 +111,34 @@ class DrupalKernel extends Kernel {
    */
   protected function buildContainer() {
     $container = $this->getContainerBuilder();
+    // Add the objects we have instantiated as synthetic services to the DIC.
+    $container->register('config.cachedstorage.storage', 'Drupal\Core\Config\FileStorage')
+      ->setSynthetic(TRUE);
+    $container->set('config.cachedstorage.storage', $this->config_cached_storage);
 
-    // Merge in the minimal bootstrap container.
-    if ($bootstrap_container = drupal_container()) {
-      $container->merge($bootstrap_container);
-    }
+    $container->register('cache.config')->setSynthetic(TRUE);
+    $container->set('cache.config', $this->cache_config);
+
+    $container->register('config.storage', 'Drupal\Core\Config\CachedStorage')
+      ->setSynthetic(TRUE);
+    $container->set('config.storage', $this->config_storage);
+
+    $container->register('config.subscriber.globalconf', 'Drupal\Core\EventSubscriber\ConfigGlobalOverrideSubscriber')
+      ->setSynthetic(TRUE);
+    $container->set('config.subscriber.globalconf', $this->config_global_override_sub);
+
+    $container->register('dispatcher', 'Symfony\Component\EventDispatcher\EventDispatcher')
+      ->setSynthetic(TRUE);
+    $container->set('dispatcher', $this->dispatcher);
+
+    $container->register('config.factory', 'Drupal\Core\Config\ConfigFactory')
+      ->setSynthetic(TRUE);
+    $container->set('config.factory', $this->config_factory);
+    
+    $container->register('extension_handler', 'Drupal\Core\ExtensionHandler')
+      ->setSynthetic(TRUE);
+    $container->set('extension_handler', $this->extension_handler);
+
     foreach ($this->bundles as $bundle) {
       $bundle->build($container);
     }

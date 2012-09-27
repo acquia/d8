@@ -531,7 +531,7 @@ function locale_translate_batch_finished($success, $results) {
     drupal_set_message(t('The translation was successfully imported. There are %number newly created translated strings, %update strings were updated and %delete strings were removed.', array('%number' => $additions, '%update' => $updates, '%delete' => $deletes)));
     watchdog('locale', 'The translation was succesfully imported. %number new strings added, %update updated and %delete removed.', array('%number' => $additions, '%update' => $updates, '%delete' => $deletes));
     if ($skips) {
-      if (module_exists('dblog')) {
+      if (drupal_container()->get('extension_handler')->moduleExists('dblog')) {
         $skip_message = format_plural($skips, 'A translation string was skipped because of disallowed or malformed HTML. <a href="@url">See the log</a> for details.', '@count translation strings were skipped because of disallowed or malformed HTML. <a href="@url">See the log</a> for details.', array('@url' => url('admin/reports/dblog')));
       }
       else {

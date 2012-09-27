@@ -34,7 +34,7 @@ function bartik_preprocess_html(&$variables) {
  */
 function bartik_process_html(&$variables) {
   // Hook into color.module.
-  if (module_exists('color')) {
+  if (drupal_container()->get('extension_handler')->moduleExists('color')) {
     _color_html_alter($variables);
   }
 }
@@ -45,7 +45,7 @@ function bartik_process_html(&$variables) {
 function bartik_process_page(&$variables) {
   $site_config = config('system.site');
   // Hook into color.module.
-  if (module_exists('color')) {
+  if (drupal_container()->get('extension_handler')->moduleExists('color')) {
     _color_page_alter($variables);
   }
   // Always print the site name and slogan, but if they are toggled off, we'll

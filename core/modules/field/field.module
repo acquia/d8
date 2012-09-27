@@ -281,7 +281,7 @@ function field_help($path, $arg) {
       // order by displayed module name (module names are not translated).
       $items = array();
       $info = system_get_info('module');
-      $modules = array_merge(module_implements('field_info'), module_implements('field_widget_info'));
+      $modules = array_merge(drupal_container()->get('extension_handler')->moduleImplements('field_info'), drupal_container()->get('extension_handler')->moduleImplements('field_widget_info'));
       $modules = array_unique($modules);
       sort($modules);
       foreach ($modules as $module) {
@@ -455,7 +455,7 @@ function field_modules_disabled($modules) {
 function field_sync_field_status() {
   // Refresh the 'active' and 'storage_active' columns according to the current
   // set of enabled modules.
-  $modules = module_list();
+  $modules = drupal_container()->get('extension_handler')->moduleList();
   foreach ($modules as $module_name) {
     field_associate_fields($module_name);
   }
@@ -732,7 +732,7 @@ function field_get_display($instance, $view_mode, $entity) {
     'entity' => $entity,
     'view_mode' => $view_mode,
   );
-  drupal_alter(array('field_display', 'field_display_' . $instance['entity_type']), $display, $context);
+  drupal_container()->get('extension_handler')->alter(array('field_display', 'field_display_' . $instance['entity_type']), $display, $context);
 
   return $display;
 }
@@ -768,7 +768,7 @@ function field_extra_fields_get_display($entity_type, $bundle, $view_mode) {
     'bundle' => $bundle,
     'view_mode' => $view_mode,
   );
-  drupal_alter('field_extra_fields_display', $displays, $context);
+  drupal_container()->get('extension_handler')->alter('field_extra_fields_display', $displays, $context);
 
   return $displays;
 }
@@ -984,7 +984,7 @@ function field_view_field($entity_type, $entity, $field_name, $display = array()
       'view_mode' => '_custom',
       'display' => $display,
     );
-    drupal_alter('field_attach_view', $result, $context);
+    drupal_container()->get('extension_handler')->alter('field_attach_view', $result, $context);
 
     if (isset($result[$field_name])) {
       $output = $result[$field_name];
@@ -1064,7 +1064,7 @@ function field_access($op, $field, $entity_type, $entity = NULL, $account = NULL
     $account = $user;
   }
 
-  foreach (module_implements('field_access') as $module) {
+  foreach (drupal_container()->get('extension_handler')->moduleImplements('field_access') as $module) {
     $function = $module . '_field_access';
     $access = $function($op, $field, $entity_type, $entity, $account);
     if ($access === FALSE) {

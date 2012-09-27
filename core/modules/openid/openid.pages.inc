@@ -43,7 +43,7 @@ function openid_user_identities($account) {
       ->execute();
     drupal_set_message(t('Successfully added %identity', array('%identity' => $identity)));
     // Let other modules act on OpenID authentication.
-    module_invoke_all('openid_response', $response, $account);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('openid_response', $response, $account);
   }
 
   $header = array(t('OpenID'), t('Operations'));

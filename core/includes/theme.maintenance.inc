@@ -56,13 +56,13 @@ function _drupal_maintenance_theme() {
   // Ensure that system.module is loaded.
   if (!function_exists('_system_rebuild_theme_data')) {
     $module_list['system']['filename'] = 'core/modules/system/system.module';
-    module_list(NULL, $module_list);
+    drupal_container()->get('extension_handler')->moduleList(NULL, $module_list);
     drupal_load('module', 'system');
   }
 
   $themes = list_themes();
 
-  // list_themes() triggers a drupal_alter() in maintenance mode, but we can't
+  // list_themes() triggers a drupal_container()->get('extension_handler')->alter() in maintenance mode, but we can't
   // let themes alter the .info data until we know a theme's base themes. So
   // don't set global $theme until after list_themes() builds its cache.
   $theme = $custom_theme;

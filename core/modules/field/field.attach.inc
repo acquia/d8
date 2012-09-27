@@ -697,8 +697,8 @@ function field_attach_form($entity_type, EntityInterface $entity, &$form, &$form
   $form['#bundle'] = $entity->bundle();
 
   // Let other modules make changes to the form.
-  // Avoid module_invoke_all() to let parameters be taken by reference.
-  foreach (module_implements('field_attach_form') as $module) {
+  // Avoid drupal_container()->get('extension_handler')->moduleInvokeAll() to let parameters be taken by reference.
+  foreach (drupal_container()->get('extension_handler')->moduleImplements('field_attach_form') as $module) {
     $function = $module . '_field_attach_form';
     $function($entity_type, $entity, $form, $form_state, $langcode);
   }
@@ -792,7 +792,7 @@ function field_attach_load($entity_type, $entities, $age = FIELD_LOAD_CURRENT, $
     // Invoke hook_field_storage_pre_load(): let any module load field
     // data before the storage engine, accumulating along the way.
     $skip_fields = array();
-    foreach (module_implements('field_storage_pre_load') as $module) {
+    foreach (drupal_container()->get('extension_handler')->moduleImplements('field_storage_pre_load') as $module) {
       $function = $module . '_field_storage_pre_load';
       $function($entity_type, $queried_entities, $age, $skip_fields, $options);
     }
@@ -832,7 +832,7 @@ function field_attach_load($entity_type, $entities, $age = FIELD_LOAD_CURRENT, $
 
     // Invoke hook_field_attach_load(): let other modules act on loading the
     // entitiy.
-    module_invoke_all('field_attach_load', $entity_type, $queried_entities, $age, $options);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('field_attach_load', $entity_type, $queried_entities, $age, $options);
 
     // Build cache data.
     if ($cache_write) {
@@ -898,8 +898,8 @@ function field_attach_validate($entity_type, $entity) {
   _field_invoke('validate', $entity_type, $entity, $errors);
 
   // Let other modules validate the entity.
-  // Avoid module_invoke_all() to let $errors be taken by reference.
-  foreach (module_implements('field_attach_validate') as $module) {
+  // Avoid drupal_container()->get('extension_handler')->moduleInvokeAll() to let $errors be taken by reference.
+  foreach (drupal_container()->get('extension_handler')->moduleImplements('field_attach_validate') as $module) {
     $function = $module . '_field_attach_validate';
     $function($entity_type, $entity, $errors);
   }
@@ -980,8 +980,8 @@ function field_attach_submit($entity_type, EntityInterface $entity, $form, &$for
   field_invoke_method('submit', _field_invoke_widget_target(), $entity, $form, $form_state);
 
   // Let other modules act on submitting the entity.
-  // Avoid module_invoke_all() to let $form_state be taken by reference.
-  foreach (module_implements('field_attach_submit') as $module) {
+  // Avoid drupal_container()->get('extension_handler')->moduleInvokeAll() to let $form_state be taken by reference.
+  foreach (drupal_container()->get('extension_handler')->moduleImplements('field_attach_submit') as $module) {
     $function = $module . '_field_attach_submit';
     $function($entity_type, $entity, $form, $form_state);
   }
@@ -1002,7 +1002,7 @@ function field_attach_presave($entity_type, $entity) {
   _field_invoke('presave', $entity_type, $entity);
 
   // Let other modules act on presaving the entity.
-  module_invoke_all('field_attach_presave', $entity_type, $entity);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('field_attach_presave', $entity_type, $entity);
 }
 
 /**
@@ -1028,7 +1028,7 @@ function field_attach_insert($entity_type, EntityInterface $entity) {
   // Let any module insert field data before the storage engine, accumulating
   // saved fields along the way.
   $skip_fields = array();
-  foreach (module_implements('field_storage_pre_insert') as $module) {
+  foreach (drupal_container()->get('extension_handler')->moduleImplements('field_storage_pre_insert') as $module) {
     $function = $module . '_field_storage_pre_insert';
     $function($entity_type, $entity, $skip_fields);
   }
@@ -1054,7 +1054,7 @@ function field_attach_insert($entity_type, EntityInterface $entity) {
   }
 
   // Let other modules act on inserting the entity.
-  module_invoke_all('field_attach_insert', $entity_type, $entity);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('field_attach_insert', $entity_type, $entity);
 
   $entity_info = entity_get_info($entity_type);
 }
@@ -1073,7 +1073,7 @@ function field_attach_update($entity_type, EntityInterface $entity) {
   // Let any module update field data before the storage engine, accumulating
   // saved fields along the way.
   $skip_fields = array();
-  foreach (module_implements('field_storage_pre_update') as $module) {
+  foreach (drupal_container()->get('extension_handler')->moduleImplements('field_storage_pre_update') as $module) {
     $function = $module . '_field_storage_pre_update';
     $function($entity_type, $entity, $skip_fields);
   }
@@ -1103,7 +1103,7 @@ function field_attach_update($entity_type, EntityInterface $entity) {
   }
 
   // Let other modules act on updating the entity.
-  module_invoke_all('field_attach_update', $entity_type, $entity);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('field_attach_update', $entity_type, $entity);
 
   $entity_info = entity_get_info($entity_type);
   if ($entity_info['field cache']) {
@@ -1138,7 +1138,7 @@ function field_attach_delete($entity_type, $entity) {
   }
 
   // Let other modules act on deleting the entity.
-  module_invoke_all('field_attach_delete', $entity_type, $entity);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('field_attach_delete', $entity_type, $entity);
 
   $entity_info = entity_get_info($entity_type);
   if ($entity_info['field cache']) {
@@ -1173,7 +1173,7 @@ function field_attach_delete_revision($entity_type, $entity) {
   }
 
   // Let other modules act on deleting the revision.
-  module_invoke_all('field_attach_delete_revision', $entity_type, $entity);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('field_attach_delete_revision', $entity_type, $entity);
 }
 
 /**
@@ -1298,7 +1298,7 @@ function field_attach_view($entity_type, EntityInterface $entity, $view_mode, $l
     'display' => $view_mode,
     'langcode' => $langcode,
   );
-  drupal_alter('field_attach_view', $output, $context);
+  drupal_container()->get('extension_handler')->alter('field_attach_view', $output, $context);
 
   // Reset the _field_view_prepared flag set in field_attach_prepare_view(),
   // in case the same entity is displayed with different settings later in
@@ -1341,7 +1341,7 @@ function field_attach_preprocess($entity_type, EntityInterface $entity, $element
     'entity' => $entity,
     'element' => $element,
   );
-  drupal_alter('field_attach_preprocess', $variables, $context);
+  drupal_container()->get('extension_handler')->alter('field_attach_preprocess', $variables, $context);
 }
 
 /**
@@ -1380,7 +1380,7 @@ function field_attach_prepare_translation($entity_type, EntityInterface $entity,
     'source_entity' => $source_entity,
     'source_langcode' => $source_langcode,
   );
-  drupal_alter('field_attach_prepare_translation', $entity, $context);
+  drupal_container()->get('extension_handler')->alter('field_attach_prepare_translation', $entity, $context);
 }
 
 /**
@@ -1399,7 +1399,7 @@ function field_attach_create_bundle($entity_type, $bundle) {
   field_cache_clear();
 
   // Let other modules act on creating the bundle.
-  module_invoke_all('field_attach_create_bundle', $entity_type, $bundle);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('field_attach_create_bundle', $entity_type, $bundle);
 }
 
 /**
@@ -1429,7 +1429,7 @@ function field_attach_rename_bundle($entity_type, $bundle_old, $bundle_new) {
   variable_del('field_bundle_settings_' . $entity_type . '__' . $bundle_old);
 
   // Let other modules act on renaming the bundle.
-  module_invoke_all('field_attach_rename_bundle', $entity_type, $bundle_old, $bundle_new);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('field_attach_rename_bundle', $entity_type, $bundle_old, $bundle_new);
 }
 
 /**
@@ -1463,7 +1463,7 @@ function field_attach_delete_bundle($entity_type, $bundle) {
   variable_del('field_bundle_settings_' . $entity_type . '__' . $bundle);
 
   // Let other modules act on deleting the bundle.
-  module_invoke_all('field_attach_delete_bundle', $entity_type, $bundle, $instances);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('field_attach_delete_bundle', $entity_type, $bundle, $instances);
 }
 
 

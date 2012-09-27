@@ -1,5 +1,6 @@
 <?php
 
+use Drupal\Core\Cache\CacheFactory;
 use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Database\Database;
 use Symfony\Component\ClassLoader\UniversalClassLoader;
@@ -1089,7 +1090,7 @@ function drupal_page_is_cacheable($allow_caching = NULL) {
  * @see bootstrap_hooks()
  */
 function bootstrap_invoke_all($hook) {
-  foreach (module_list('bootstrap') as $module) {
+  foreach (drupal_container()->get('extension_handler')->moduleList('bootstrap') as $module) {
     drupal_load('module', $module);
     module_invoke($module, $hook);
   }
@@ -1715,7 +1716,7 @@ function watchdog($type, $message, array $variables = array(), $severity = WATCH
     );
 
     // Call the logging hooks to log/process the message
-    foreach (module_implements('watchdog') as $module) {
+    foreach (drupal_container()->get('extension_handler')->moduleImplements('watchdog') as $module) {
       module_invoke($module, 'watchdog', $log_entry);
     }
 
@@ -2340,7 +2341,7 @@ function _drupal_bootstrap_variables() {
   $conf = variable_initialize(isset($conf) ? $conf : array());
   // Load bootstrap modules.
   require_once DRUPAL_ROOT . '/core/includes/module.inc';
-  module_load_all(TRUE);
+  drupal_container()->get('extension_handler')->loadAll(TRUE);
 }
 
 /**
@@ -2435,6 +2436,14 @@ function drupal_container(Container $new_container = NULL, $rebuild = FALSE) {
       ->addArgument(config_get_config_directory(CONFIG_STAGING_DIRECTORY));
     $container
       ->register('keyvalue', 'Drupal\Core\KeyValueStore\KeyValueFactory');
+    $cache = CacheFactory::get('cache');
+    $bootstrap_cache = CacheFactory::get('bootstrap');
+
+    $container->register('extension_handler', 'Drupal\Core\ExtensionHandler')
+      ->addArgument(new Reference('config.factory'))
+      ->addArgument($cache)
+      ->addArgument($bootstrap_cache);
+
   }
   return $container;
 }
@@ -2739,7 +2748,7 @@ function language_list($flags = LANGUAGE_CONFIGURABLE) {
 
     // Fill in master language list based on current configuration.
     $default = language_default();
-    if (language_multilingual() || module_exists('language')) {
+    if (language_multilingual() || drupal_container()->get('extension_handler')->moduleExists('language')) {
       // Use language module configuration if available.
       $languages = db_query('SELECT * FROM {language} ORDER BY weight ASC, name ASC')->fetchAllAssoc('langcode', PDO::FETCH_ASSOC);
 

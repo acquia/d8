@@ -247,8 +247,8 @@ function _openid_is_xri($identifier) {
  * The procedure is described in OpenID Authentication 2.0, section 7.2.
  */
 function openid_normalize($identifier) {
-  $methods = module_invoke_all('openid_normalization_method_info');
-  drupal_alter('openid_normalization_method_info', $methods);
+  $methods = drupal_container()->get('extension_handler')->moduleInvokeAll('openid_normalization_method_info');
+  drupal_container()->get('extension_handler')->alter('openid_normalization_method_info', $methods);
 
   // Execute each method in turn, stopping after the first method accepted
   // the identifier.

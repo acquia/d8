@@ -244,7 +244,7 @@ function ajax_render($commands = array()) {
     else {
       $function = 'drupal_add_' . $type;
       $items[$type] = $function();
-      drupal_alter($type, $items[$type]);
+      drupal_container()->get('extension_handler')->alter($type, $items[$type]);
       // @todo Inline CSS and JS items are indexed numerically. These can't be
       //   reliably diffed with array_diff_key(), since the number can change
       //   due to factors unrelated to the inline content, so for now, we strip
@@ -294,7 +294,7 @@ function ajax_render($commands = array()) {
   }
 
   // Allow modules to alter any Ajax response.
-  drupal_alter('ajax_render', $commands);
+  drupal_container()->get('extension_handler')->alter('ajax_render', $commands);
 
   return drupal_json_encode($commands);
 }

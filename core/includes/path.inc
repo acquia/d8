@@ -281,10 +281,10 @@ function drupal_get_normal_path($path, $langcode = NULL) {
     $path = $source;
   }
 
-  // Allow other modules to alter the inbound URL. We cannot use drupal_alter()
+  // Allow other modules to alter the inbound URL. We cannot use drupal_container()->get('extension_handler')->alter()
   // here because we need to run hook_url_inbound_alter() in the reverse order
   // of hook_url_outbound_alter().
-  foreach (array_reverse(module_implements('url_inbound_alter')) as $module) {
+  foreach (array_reverse(drupal_container()->get('extension_handler')->moduleImplements('url_inbound_alter')) as $module) {
     $function = $module . '_url_inbound_alter';
     $function($path, $original_path, $langcode);
   }
@@ -463,11 +463,11 @@ function path_save(&$path) {
 
   if (empty($path['pid'])) {
     drupal_write_record('url_alias', $path);
-    module_invoke_all('path_insert', $path);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('path_insert', $path);
   }
   else {
     drupal_write_record('url_alias', $path, array('pid'));
-    module_invoke_all('path_update', $path);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('path_update', $path);
   }
 
   // Clear internal properties.
@@ -493,7 +493,7 @@ function path_delete($criteria) {
     $query->condition($field, $value);
   }
   $query->execute();
-  module_invoke_all('path_delete', $path);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('path_delete', $path);
   drupal_clear_path_cache($path['source']);
 }
 
@@ -540,8 +540,8 @@ function path_is_admin($path) {
 function path_get_admin_paths() {
   $patterns = &drupal_static(__FUNCTION__);
   if (!isset($patterns)) {
-    $paths = module_invoke_all('admin_paths');
-    drupal_alter('admin_paths', $paths);
+    $paths = drupal_container()->get('extension_handler')->moduleInvokeAll('admin_paths');
+    drupal_container()->get('extension_handler')->alter('admin_paths', $paths);
     // Combine all admin paths into one array, and likewise for non-admin paths,
     // for easier handling.
     $patterns = array();

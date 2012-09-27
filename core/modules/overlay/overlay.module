@@ -650,14 +650,14 @@ function overlay_set_mode($mode = NULL) {
       drupal_add_library('overlay', 'drupal.overlay.parent');
 
       // Allow modules to act upon overlay events.
-      module_invoke_all('overlay_parent_initialize');
+      drupal_container()->get('extension_handler')->moduleInvokeAll('overlay_parent_initialize');
       break;
 
     case 'child':
       drupal_add_library('overlay', 'drupal.overlay.child');
 
       // Allow modules to act upon overlay events.
-      module_invoke_all('overlay_child_initialize');
+      drupal_container()->get('extension_handler')->moduleInvokeAll('overlay_child_initialize');
       break;
   }
   return $overlay_mode;
@@ -674,7 +674,7 @@ function overlay_overlay_parent_initialize() {
   }
   drupal_add_js(array('overlay' => array('paths' => $paths)), 'setting');
   $path_prefixes = array();
-  if (module_exists('language')) {
+  if (drupal_container()->get('extension_handler')->moduleExists('language')) {
     language_negotiation_include();
     if (variable_get('language_negotiation_url_part', LANGUAGE_NEGOTIATION_URL_PREFIX) == LANGUAGE_NEGOTIATION_URL_PREFIX) {
       // Skip the empty string indicating the default language. We always accept

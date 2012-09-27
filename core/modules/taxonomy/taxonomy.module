@@ -640,7 +640,7 @@ function taxonomy_term_build_content(Term $term, $view_mode = 'full', $langcode 
 
   // Allow modules to change the view mode.
   $context = array('langcode' => $langcode);
-  drupal_alter('entity_view_mode', $view_mode, $term, $context);
+  drupal_container()->get('extension_handler')->alter('entity_view_mode', $view_mode, $term, $context);
 
   // Try to add in the core taxonomy pieces like description and nodes.
   $settings = field_view_mode_settings($term->entityType(), $term->bundle());
@@ -663,8 +663,8 @@ function taxonomy_term_build_content(Term $term, $view_mode = 'full', $langcode 
   $term->content += field_attach_view('taxonomy_term', $term, $view_mode, $langcode);
 
   // Allow modules to make their own additions to the taxonomy term.
-  module_invoke_all('taxonomy_term_view', $term, $view_mode, $langcode);
-  module_invoke_all('entity_view', $term, $view_mode, $langcode);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('taxonomy_term_view', $term, $view_mode, $langcode);
+  drupal_container()->get('extension_handler')->moduleInvokeAll('entity_view', $term, $view_mode, $langcode);
 }
 
 /**
@@ -703,7 +703,7 @@ function taxonomy_term_view(Term $term, $view_mode = 'full', $langcode = NULL) {
   $build['#attached']['css'][] = drupal_get_path('module', 'taxonomy') . '/taxonomy.css';
 
   // Allow modules to modify the structured term.
-  drupal_alter(array('taxonomy_term_view', 'entity_view'), $build, $term);
+  drupal_container()->get('extension_handler')->alter(array('taxonomy_term_view', 'entity_view'), $build, $term);
 
   return $build;
 }

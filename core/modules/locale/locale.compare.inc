@@ -41,7 +41,7 @@ function locale_translation_get_projects() {
 
     // http://drupal.org/node/1777106 is a follow-up issue to make the check for
     // possible out-of-date project information more robust.
-    if ($result->rowCount() == 0 && module_exists('update')) {
+    if ($result->rowCount() == 0 && drupal_container()->get('extension_handler')->moduleExists('update')) {
       // At least the core project should be in the database, so we build the
       // data if none are found.
       locale_translation_build_projects();
@@ -85,7 +85,7 @@ function locale_translation_flush_projects() {
  */
 function locale_translation_build_projects() {
   // This function depends on Update module. We degrade gracefully.
-  if (!module_exists('update')) {
+  if (!drupal_container()->get('extension_handler')->moduleExists('update')) {
     return array();
   }
 
@@ -168,7 +168,7 @@ function locale_translation_build_projects() {
  */
 function locale_translation_project_list() {
   // This function depends on Update module. We degrade gracefully.
-  if (!module_exists('update')) {
+  if (!drupal_container()->get('extension_handler')->moduleExists('update')) {
     return array();
   }
 
@@ -192,7 +192,7 @@ function locale_translation_project_list() {
     }
 
     // Allow other modules to alter projects before fetching and comparing.
-    drupal_alter('locale_translation_projects', $projects);
+    drupal_container()->get('extension_handler')->alter('locale_translation_projects', $projects);
   }
   return $projects;
 }

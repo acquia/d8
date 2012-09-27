@@ -71,7 +71,7 @@ function dblog_menu() {
     'file' => 'dblog.admin.inc',
   );
 
-  if (module_exists('search')) {
+  if (drupal_container()->get('extension_handler')->moduleExists('search')) {
     $items['admin/reports/search'] = array(
       'title' => 'Top search phrases',
       'description' => 'View most popular search phrases.',

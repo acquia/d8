@@ -233,7 +233,7 @@ function system_themes_page() {
   }
 
   uasort($theme_groups['enabled'], 'system_sort_themes');
-  drupal_alter('system_themes_page', $theme_groups);
+  drupal_container()->get('extension_handler')->alter('system_themes_page', $theme_groups);
 
   $admin_form = drupal_get_form('system_themes_admin_form', $admin_theme_options);
   return theme('system_themes_page', array('theme_groups' => $theme_groups, 'theme_group_titles' => $theme_group_titles)) . drupal_render($admin_form);
@@ -413,7 +413,7 @@ function system_theme_settings($form, &$form_state, $key = '') {
     $disabled['toggle_node_user_picture'] = TRUE;
     $disabled['toggle_comment_user_picture'] = TRUE;
   }
-  if (!module_exists('comment')) {
+  if (!drupal_container()->get('extension_handler')->moduleExists('comment')) {
     $disabled['toggle_comment_user_picture'] = TRUE;
     $disabled['toggle_comment_user_verification'] = TRUE;
   }
@@ -440,7 +440,7 @@ function system_theme_settings($form, &$form_state, $key = '') {
   }
 
   // Logo settings, only available when file.module is enabled.
-  if ((!$key) || in_array('logo', $features) && module_exists('file')) {
+  if ((!$key) || in_array('logo', $features) && drupal_container()->get('extension_handler')->moduleExists('file')) {
     $form['logo'] = array(
       '#type' => 'fieldset',
       '#title' => t('Logo image settings'),
@@ -474,7 +474,7 @@ function system_theme_settings($form, &$form_state, $key = '') {
     );
   }
 
-  if ((!$key) || in_array('favicon', $features) && module_exists('file')) {
+  if ((!$key) || in_array('favicon', $features) && drupal_container()->get('extension_handler')->moduleExists('file')) {
     $form['favicon'] = array(
       '#type' => 'fieldset',
       '#title' => t('Shortcut icon settings'),
@@ -603,7 +603,7 @@ function system_theme_settings($form, &$form_state, $key = '') {
  * Validator for the system_theme_settings() form.
  */
 function system_theme_settings_validate($form, &$form_state) {
-  if (module_exists('file')) {
+  if (drupal_container()->get('extension_handler')->moduleExists('file')) {
     // Handle file uploads.
     $validators = array('file_validate_is_image' => array());
 
@@ -702,7 +702,7 @@ function system_theme_settings_submit($form, &$form_state) {
 
   // If the user uploaded a new logo or favicon, save it to a permanent location
   // and use it in place of the default theme-provided file.
-  if (module_exists('file')) {
+  if (drupal_container()->get('extension_handler')->moduleExists('file')) {
     if ($file = $values['logo_upload']) {
       unset($values['logo_upload']);
       $filename = file_unmanaged_copy($file->uri);
@@ -813,7 +813,7 @@ function system_modules($form, $form_state = array()) {
   $form['modules'] = array('#tree' => TRUE);
 
   // Used when checking if module implements a help page.
-  $help_arg = module_exists('help') ? drupal_help_arg() : FALSE;
+  $help_arg = drupal_container()->get('extension_handler')->moduleExists('help') ? drupal_help_arg() : FALSE;
 
   // Used when displaying modules that are required by the install profile.
   require_once DRUPAL_ROOT . '/core/includes/install.inc';
@@ -862,7 +862,7 @@ function system_modules($form, $form_state = array()) {
       }
     }
     // Generate link for module's help page, if there is one.
-    if ($help_arg && $module->status && in_array($filename, module_implements('help'))) {
+    if ($help_arg && $module->status && in_array($filename, drupal_container()->get('extension_handler')->moduleImplements('help'))) {
       if (module_invoke($filename, 'help', "admin/help#$filename", $help_arg)) {
         $extra['links']['help'] = array(
           '#type' => 'link',
@@ -873,7 +873,7 @@ function system_modules($form, $form_state = array()) {
       }
     }
     // Generate link for module's permission, if the user has access to it.
-    if ($module->status && user_access('administer permissions') && in_array($filename, module_implements('permission'))) {
+    if ($module->status && user_access('administer permissions') && in_array($filename, drupal_container()->get('extension_handler')->moduleImplements('permission'))) {
       $extra['links']['permissions'] = array(
         '#type' => 'link',
         '#title' => t('Permissions'),
@@ -1193,18 +1193,18 @@ function system_modules_submit($form, &$form_state) {
         $actions['install'][] = $name;
         $actions['enable'][] = $name;
       }
-      elseif (!module_exists($name)) {
+      elseif (!drupal_container()->get('extension_handler')->moduleExists($name)) {
         $actions['enable'][] = $name;
       }
     }
-    elseif (module_exists($name)) {
+    elseif (drupal_container()->get('extension_handler')->moduleExists($name)) {
       $actions['disable'][] = $name;
     }
   }
 
   // Gets list of modules prior to install process, unsets $form_state['storage']
   // so we don't get redirected back to the confirmation form.
-  $pre_install_list = module_list();
+  $pre_install_list = drupal_container()->get('extension_handler')->moduleList();
   unset($form_state['storage']);
 
   // Reverse the 'enable' list, to order dependencies before dependents.
@@ -1216,7 +1216,7 @@ function system_modules_submit($form, &$form_state) {
 
   // Gets module list after install process, flushes caches and displays a
   // message if there are changes.
-  $post_install_list = module_list();
+  $post_install_list = drupal_container()->get('extension_handler')->moduleList();
   if ($pre_install_list != $post_install_list) {
     drupal_flush_all_caches();
     drupal_set_message(t('The configuration options have been saved.'));
@@ -2188,7 +2188,7 @@ function system_status($check = FALSE) {
   drupal_load_updates();
 
   // Check run-time requirements and status information.
-  $requirements = module_invoke_all('requirements', 'runtime');
+  $requirements = drupal_container()->get('extension_handler')->moduleInvokeAll('requirements', 'runtime');
   usort($requirements, '_system_sort_requirements');
 
   if ($check) {

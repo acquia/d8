@@ -136,7 +136,7 @@ function field_available_languages($entity_type, $field) {
       $langcodes = field_content_languages();
       // Let other modules alter the available languages.
       $context = array('entity_type' => $entity_type, 'field' => $field);
-      drupal_alter('field_available_languages', $langcodes, $context);
+      drupal_container()->get('extension_handler')->alter('field_available_languages', $langcodes, $context);
       $field_langcodes[$entity_type][$field_name] = $langcodes;
     }
     else {
@@ -340,7 +340,7 @@ function field_language($entity_type, $entity, $field_name = NULL, $langcode = N
       if (variable_get('field_language_fallback', FALSE) && field_has_translation_handler($context['entity_type'])) {
         field_language_fallback($display_langcode, $context['entity'], $context['langcode']);
       }
-      drupal_alter('field_language', $display_langcode, $context);
+      drupal_container()->get('extension_handler')->alter('field_language', $display_langcode, $context);
     }
 
     $display_langcodes[$entity_type][$id][$langcode] = $display_langcode;

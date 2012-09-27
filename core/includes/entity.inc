@@ -40,7 +40,7 @@ function entity_get_info($entity_type = NULL) {
       $entity_info = $cache->data;
     }
     else {
-      $entity_info = module_invoke_all('entity_info');
+      $entity_info = drupal_container()->get('extension_handler')->moduleInvokeAll('entity_info');
       // Merge in default values.
       foreach ($entity_info as $name => $data) {
         $entity_info[$name] += array(
@@ -81,7 +81,7 @@ function entity_get_info($entity_type = NULL) {
         }
       }
       // Let other modules alter the entity info.
-      drupal_alter('entity_info', $entity_info);
+      drupal_container()->get('extension_handler')->alter('entity_info', $entity_info);
       cache()->set("entity_info:$langcode", $entity_info);
     }
   }
@@ -339,7 +339,7 @@ function entity_prepare_view($entity_type, $entities) {
   }
 
   if (!empty($prepare)) {
-    module_invoke_all('entity_prepare_view', $prepare, $entity_type);
+    drupal_container()->get('extension_handler')->moduleInvokeAll('entity_prepare_view', $prepare, $entity_type);
   }
 }
 

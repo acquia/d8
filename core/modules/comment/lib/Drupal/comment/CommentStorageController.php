@@ -156,7 +156,7 @@ class CommentStorageController extends DatabaseStorageController {
     // Update the {node_comment_statistics} table prior to executing the hook.
     $this->updateNodeStatistics($comment->nid);
     if ($comment->status == COMMENT_PUBLISHED) {
-      module_invoke_all('comment_publish', $comment);
+      drupal_container()->get('extension_handler')->moduleInvokeAll('comment_publish', $comment);
     }
   }
 

@@ -400,7 +400,7 @@ function system_requirements($phase) {
     );
 
     // Check installed modules.
-    foreach (module_list() as $module) {
+    foreach (drupal_container()->get('extension_handler')->moduleList() as $module) {
       $updates = drupal_get_schema_versions($module);
       if ($updates !== FALSE) {
         $default = drupal_get_installed_schema_version($module);
@@ -494,7 +494,7 @@ function system_requirements($phase) {
 
   if ($phase == 'runtime') {
     // Check for update status module.
-    if (!module_exists('update')) {
+    if (!drupal_container()->get('extension_handler')->moduleExists('update')) {
       $requirements['update status'] = array(
         'value' => $t('Not enabled'),
         'severity' => REQUIREMENT_WARNING,

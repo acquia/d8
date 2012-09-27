@@ -94,7 +94,7 @@ function _field_info_collate_types() {
       );
 
       // Populate field types.
-      foreach (module_implements('field_info') as $module) {
+      foreach (drupal_container()->get('extension_handler')->moduleImplements('field_info') as $module) {
         $field_types = (array) module_invoke($module, 'field_info');
         foreach ($field_types as $name => $field_info) {
           // Provide defaults.
@@ -106,10 +106,10 @@ function _field_info_collate_types() {
           $info['field types'][$name]['module'] = $module;
         }
       }
-      drupal_alter('field_info', $info['field types']);
+      drupal_container()->get('extension_handler')->alter('field_info', $info['field types']);
 
       // Populate formatter types.
-      foreach (module_implements('field_formatter_info') as $module) {
+      foreach (drupal_container()->get('extension_handler')->moduleImplements('field_formatter_info') as $module) {
         $formatter_types = (array) module_invoke($module, 'field_formatter_info');
         foreach ($formatter_types as $name => $formatter_info) {
           // Provide defaults.
@@ -120,10 +120,10 @@ function _field_info_collate_types() {
           $info['formatter types'][$name]['module'] = $module;
         }
       }
-      drupal_alter('field_formatter_info', $info['formatter types']);
+      drupal_container()->get('extension_handler')->alter('field_formatter_info', $info['formatter types']);
 
       // Populate storage types.
-      foreach (module_implements('field_storage_info') as $module) {
+      foreach (drupal_container()->get('extension_handler')->moduleImplements('field_storage_info') as $module) {
         $storage_types = (array) module_invoke($module, 'field_storage_info');
         foreach ($storage_types as $name => $storage_info) {
           // Provide defaults.
@@ -134,7 +134,7 @@ function _field_info_collate_types() {
           $info['storage types'][$name]['module'] = $module;
         }
       }
-      drupal_alter('field_storage_info', $info['storage types']);
+      drupal_container()->get('extension_handler')->alter('field_storage_info', $info['storage types']);
 
       cache('field')->set("field_info_types:$langcode", $info);
     }
@@ -221,8 +221,8 @@ function _field_info_collate_fields() {
       }
 
       // Populate 'extra_fields'.
-      $extra = module_invoke_all('field_extra_fields');
-      drupal_alter('field_extra_fields', $extra);
+      $extra = drupal_container()->get('extension_handler')->moduleInvokeAll('field_extra_fields');
+      drupal_container()->get('extension_handler')->alter('field_extra_fields', $extra);
       // Merge in saved settings.
       foreach ($extra as $entity_type => $bundles) {
         foreach ($bundles as $bundle => $extra_fields) {
@@ -265,7 +265,7 @@ function _field_info_prepare_field($field) {
 
   // Add storage details.
   $details = (array) module_invoke($field['storage']['module'], 'field_storage_details', $field);
-  drupal_alter('field_storage_details', $details, $field, $instance);
+  drupal_container()->get('extension_handler')->alter('field_storage_details', $details, $field, $instance);
   $field['storage']['details'] = $details;
 
   // Initialize the 'bundles' list.
@@ -778,7 +778,7 @@ function field_info_max_weight($entity_type, $bundle, $context) {
   }
 
   // Let other modules feedback about their own additions.
-  $weights = array_merge($weights, module_invoke_all('field_info_max_weight', $entity_type, $bundle, $context));
+  $weights = array_merge($weights, drupal_container()->get('extension_handler')->moduleInvokeAll('field_info_max_weight', $entity_type, $bundle, $context));
   $max_weight = $weights ? max($weights) : NULL;
 
   return $max_weight;

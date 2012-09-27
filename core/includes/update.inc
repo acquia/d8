@@ -418,10 +418,7 @@ function update_module_enable(array $modules) {
     // updates since the module's inception are executed in a core upgrade.
     $store->set($module, 0);
 
-    // system_list_reset() is in module.inc but that would only be available
-    // once the variable bootstrap is done.
-    require_once DRUPAL_ROOT . '/core/includes/module.inc';
-    system_list_reset();
+    drupal_container()->get('extension_handler')->systemListReset();
     //  @todo: figure out what to do about hook_install() and hook_enable().
   }
 }
@@ -935,7 +932,7 @@ function update_already_performed($module, $number) {
 /**
  * Invoke hook_update_dependencies() in all installed modules.
  *
- * This function is similar to module_invoke_all(), with the main difference
+ * This function is similar to drupal_container()->get('extension_handler')->moduleInvokeAll(), with the main difference
  * that it does not require that a module be enabled to invoke its hook, only
  * that it be installed. This allows the update system to properly perform
  * updates even on modules that are currently disabled.
@@ -944,13 +941,13 @@ function update_already_performed($module, $number) {
  *   An array of return values obtained by merging the results of the
  *   hook_update_dependencies() implementations in all installed modules.
  *
- * @see module_invoke_all()
+ * @see drupal_container()->get('extension_handler')->moduleInvokeAll()
  * @see hook_update_dependencies()
  */
 function update_retrieve_dependencies() {
   $return = array();
   // Get a list of installed modules, arranged so that we invoke their hooks in
-  // the same order that module_invoke_all() does.
+  // the same order that drupal_container()->get('extension_handler')->moduleInvokeAll() does.
   foreach (config('system.module')->get() as $module => $data) {
     $function = $module . '_update_dependencies';
     if (function_exists($function)) {
