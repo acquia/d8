@@ -52,6 +52,9 @@ class CoreBundle extends Bundle
       ->setFactoryClass('Drupal\Core\Database\Database')
       ->setFactoryMethod('getConnection')
       ->addArgument('slave');
+    $container
+      ->register('config.storage.staging', 'Drupal\Core\Config\FileStorage')
+      ->addArgument(config_get_config_directory(CONFIG_STAGING_DIRECTORY));
     $container->register('keyvalue', 'Drupal\Core\KeyValueStore\KeyValueFactory');
 
     // @todo Replace below lines with the commented out block below it when it's

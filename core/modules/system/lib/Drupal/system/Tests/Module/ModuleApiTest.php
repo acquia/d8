@@ -129,7 +129,7 @@ class ModuleApiTest extends WebTestBase {
     module_enable(array('module_test'), FALSE);
     $this->resetAll();
     $this->drupalGet('module-test/hook-dynamic-loading-invoke-all');
-    $this->assertText('success!', t('drupal_container()->get('extension_handler')->moduleInvokeAll() dynamically loads a hook defined in hook_hook_info().'));
+    $this->assertText('success!', t('moduleInvokeAll() dynamically loads a hook defined in hook_hook_info().'));
   }
 
   /**

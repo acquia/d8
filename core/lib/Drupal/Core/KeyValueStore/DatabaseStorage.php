@@ -7,6 +7,8 @@
 
 namespace Drupal\Core\KeyValueStore;
 
+use Drupal\Core\Database\Database;
+
 /**
  * Defines a default key/value store implementation.
  *
@@ -36,7 +38,7 @@ class DatabaseStorage extends AbstractStorage {
   public function getMultiple(array $keys) {
     $values = array();
     try {
-      $result = db_query('SELECT name, value FROM {' . db_escape_table($this->table) . '} WHERE name IN (:keys) AND collection = :collection', array(':keys' => $keys, ':collection' => $this->collection))->fetchAllAssoc('name');
+      $result = Database::getConnection()->query('SELECT name, value FROM {' . Database::getConnection()->escapeTable($this->table) . '} WHERE name IN (:keys) AND collection = :collection', array(':keys' => $keys, ':collection' => $this->collection))->fetchAllAssoc('name');
       foreach ($keys as $key) {
         if (isset($result[$key])) {
           $values[$key] = unserialize($result[$key]->value);
@@ -55,7 +57,7 @@ class DatabaseStorage extends AbstractStorage {
    * Implements Drupal\Core\KeyValueStore\KeyValueStoreInterface::getAll().
    */
   public function getAll() {
-    $result = db_query('SELECT name, value FROM {' . db_escape_table($this->table) . '} WHERE collection = :collection', array(':collection' => $this->collection));
+    $result = Database::getConnection()->query('SELECT name, value FROM {' . db_escape_table($this->table) . '} WHERE collection = :collection', array(':collection' => $this->collection));
     $values = array();
 
     foreach ($result as $item) {
@@ -70,7 +72,7 @@ class DatabaseStorage extends AbstractStorage {
    * Implements Drupal\Core\KeyValueStore\KeyValueStoreInterface::set().
    */
   public function set($key, $value) {
-    db_merge($this->table)
+    Database::getConnection()->merge($this->table)
       ->key(array(
         'name' => $key,
         'collection' => $this->collection,
@@ -85,7 +87,7 @@ class DatabaseStorage extends AbstractStorage {
   public function deleteMultiple(array $keys) {
     // Delete in chunks when a large array is passed.
     do {
-      db_delete($this->table)
+      Database::getConnection()->delete($this->table)
         ->condition('name', array_splice($keys, 0, 1000))
         ->condition('collection', $this->collection)
         ->execute();

@@ -25,7 +25,7 @@ class AlterTest extends WebTestBase {
   public static function getInfo() {
     return array(
       'name' => 'Alter hook functionality',
-      'description' => 'Tests alteration of arguments passed to drupal_container()->get('extension_handler')->alter().',
+      'description' => 'Tests alteration of arguments passed to the ExtensionHandler\'s alter() method.',
       'group' => 'Common',
     );
   }
@@ -62,9 +62,9 @@ class AlterTest extends WebTestBase {
     $array2_copy = $array;
     $array2_expected = array('foo' => 'Drupal theme');
     drupal_container()->get('extension_handler')->alter('drupal_alter', $array_copy, $entity_copy, $array2_copy);
-    $this->assertEqual($array_copy, $array_expected, t('First argument to drupal_container()->get('extension_handler')->alter() was altered.'));
-    $this->assertEqual($entity_copy, $entity_expected, t('Second argument to drupal_container()->get('extension_handler')->alter() was altered.'));
-    $this->assertEqual($array2_copy, $array2_expected, t('Third argument to drupal_container()->get('extension_handler')->alter() was altered.'));
+    $this->assertEqual($array_copy, $array_expected, t('First argument to ExtensionHandler\'s alter() method was altered.'));
+    $this->assertEqual($entity_copy, $entity_expected, t('Second argument to ExtensionHandler\'s alter() method was altered.'));
+    $this->assertEqual($array2_copy, $array2_expected, t('Third argument to ExtensionHandler\'s alter() method was altered.'));
 
     // Verify alteration order when passing an array of types to drupal_container()->get('extension_handler')->alter().
     // common_test_module_implements_alter() places 'block' implementation after
