@@ -441,7 +441,7 @@ function system_requirements($phase) {
       foreach ($files as $record) {
         $record->info = $record->parsed_info;
       }
-      $files = _module_build_dependencies($files);
+      $files = drupal_container()->get('extension_handler')->buildModuleDependencies($files);
     }
 
     foreach ($files as $module => $file) {

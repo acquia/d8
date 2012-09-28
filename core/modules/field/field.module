@@ -358,7 +358,7 @@ function field_system_info_alter(&$info, $file, $type) {
         }
       }
       if ($non_deleted) {
-        // Calling module_exists() here leads to infinite recursion.
+        // Calling drupal_container()->get('extension_handler')->moduleExists() here leads to infinite recursion.
         if (config('system.module')->get('field_ui') !== NULL) {
           $explanation = t('Field type(s) in use - see <a href="@fields-page">Field list</a>', array('@fields-page' => url('admin/reports/fields')));
         }

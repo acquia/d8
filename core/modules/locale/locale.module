@@ -265,7 +265,7 @@ function locale($string = NULL, $context = NULL, $langcode = NULL) {
   // cannot be unloaded, this is typically the case in the environment that
   // is executing a test.
   if (!isset($locale_exists)) {
-    $locale_exists = function_exists('module_exists') && module_exists('locale');
+    $locale_exists = function_exists('module_exists') && drupal_container()->get('extension_handler')->moduleExists('locale');
   }
   if (!$locale_exists) {
     return $string;

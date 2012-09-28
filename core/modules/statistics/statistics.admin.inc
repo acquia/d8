@@ -121,7 +121,7 @@ function statistics_top_pages() {
  *   A render array containing the top visitors information.
  */
 function statistics_top_visitors() {
-  $ban_exists = module_exists('ban');
+  $ban_exists = drupal_container()->get('extension_handler')->moduleExists('ban');
 
   $header = array(
     array('data' => t('Hits'), 'field' => 'hits', 'sort' => 'desc'),

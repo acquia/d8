@@ -282,7 +282,7 @@ function module_disable($module_list, $disable_dependents = TRUE) {
   $invoke_modules = array();
 
   foreach ($module_list as $module) {
-    if (module_exists($module)) {
+    if (drupal_container()->get('extension_handler')->moduleExists($module)) {
       $config = config('system.module');
       $disabled_config = config('system.module.disabled');
       module_load_install($module);

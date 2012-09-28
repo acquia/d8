@@ -391,7 +391,7 @@ class BlockTest extends WebTestBase {
    */
   function testBlockRehash() {
     module_enable(array('block_test'));
-    $this->assertTrue(module_exists('block_test'), 'Test block module enabled.');
+    $this->assertTrue(drupal_container()->get('extension_handler')->moduleExists('block_test'), 'Test block module enabled.');
 
     // Our new block should be inserted in the database when we visit the
     // block management page.

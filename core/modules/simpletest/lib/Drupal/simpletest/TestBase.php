@@ -830,7 +830,7 @@ abstract class TestBase {
     drupal_static_reset();
 
     // Reset module list and module load status.
-    module_list_reset();
+    drupal_container()->get('extension_handler')->moduleListReset();
 
     // Restore original in-memory configuration.
     $conf = $this->originalConf;
