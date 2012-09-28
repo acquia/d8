@@ -422,7 +422,7 @@ if (is_null($op) && update_access_allowed()) {
 
   // Reset the drupal_container()->get('extension_handler')->moduleImplements() cache so that any new hook implementations
   // in updated code are picked up.
-  module_implements_reset();
+  drupal_container()->get('extension_handler')->moduleImplementsReset();
 
   // Set up $language, since the installer components require it.
   drupal_language_initialize();

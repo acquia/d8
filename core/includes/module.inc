@@ -303,7 +303,7 @@ function module_disable($module_list, $disable_dependents = TRUE) {
   if (!empty($invoke_modules)) {
     // Refresh the module list to exclude the disabled modules.
     $extension_handler->systemListReset();
-    module_implements_reset();
+    drupal_container()->get('extension_handler')->moduleImplementsReset();
     entity_info_cache_clear();
     // Invoke hook_modules_disabled before disabling modules,
     // so we can still call module hooks to get information.

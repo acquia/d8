@@ -139,7 +139,7 @@ class LanguageNegotiationInfoTest extends WebTestBase {
       $function = "module_{$op}";
       $function($modules);
       // Reset hook implementation cache.
-      module_implements_reset();
+      drupal_container()->get('extension_handler')->moduleImplementsReset();
     }
 
     drupal_static_reset('language_types_info');
