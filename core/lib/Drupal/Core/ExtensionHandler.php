@@ -107,7 +107,7 @@ class ExtensionHandler {
     // The list that will be be returned. Separate from $module_list in order
     // to not duplicate the static cache of system_list().
     $list = $this->module_list;
-  
+
     if (isset($fixed_list)) {
       $this->module_list = array();
       foreach ($fixed_list as $name => $module) {
@@ -355,7 +355,8 @@ class ExtensionHandler {
    *   TRUE if the module is both installed and enabled.
    */
   function moduleExists($module) {
-    return isset($this->module_list[$module]);
+    $list = $this->moduleList();
+    return isset($list[$module]);
   }
 
   /**
